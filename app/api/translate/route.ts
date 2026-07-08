@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatServiceError } from "../../../lib/api-errors";
 import { translateArticleBlocks } from "../../../lib/translation-pipeline";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +45,7 @@ export async function POST(request: Request) {
 
     return Response.json(translatedPayload);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "目前無法完成翻譯。";
+    const message = formatServiceError(error, "目前無法完成翻譯。");
 
     return Response.json({ error: message }, { status: 500 });
   }

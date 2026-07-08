@@ -1,5 +1,6 @@
 import { POST as analyzePost } from "../../app/api/analyze/route";
 import { POST as translatePost } from "../../app/api/translate/route";
+import * as pipeline from "../../lib/translation-pipeline";
 
 describe("POST /api/analyze", () => {
   it("rejects requests without a docx file", async () => {
@@ -35,5 +36,40 @@ describe("POST /api/translate", () => {
     const response = await translatePost(request);
 
     expect(response.status).toBe(400);
+  });
+
+  it("maps quota errors to a friendly Chinese message", async () => {
+    const translateSpy = vi
+      .spyOn(pipeline, "translateArticleBlocks")
+      .mockRejectedValueOnce(
+        new Error(
+          "429 You exceeded your current quota, please check your plan and billing details."
+        )
+      );
+
+    const request = {
+      json: async () => ({
+        blocks: [
+          {
+            id: "p1",
+            type: "paragraph",
+            sourceText: "原文",
+            translatedText: null,
+            polishedText: null,
+            trendSuggestions: [],
+            notes: []
+          }
+        ],
+        keywords: []
+      })
+    } as Request;
+
+    const response = await translatePost(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload.error).toMatch(/API 額度已用完/);
+
+    translateSpy.mockRestore();
   });
 });

@@ -1,4 +1,5 @@
 import type { ArticleBlock } from "../../../lib/article-blocks";
+import { formatServiceError } from "../../../lib/api-errors";
 import { parseDocxBuffer } from "../../../lib/docx-parser";
 import { analyzeArticleBlocks } from "../../../lib/translation-pipeline";
 
@@ -44,8 +45,7 @@ export async function POST(request: Request) {
 
     return Response.json(analysis);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "目前無法處理這份上傳檔案。";
+    const message = formatServiceError(error, "目前無法處理這份上傳檔案。");
 
     return Response.json({ error: message }, { status: 500 });
   }

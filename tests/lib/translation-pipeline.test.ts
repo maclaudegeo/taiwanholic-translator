@@ -1,10 +1,11 @@
 import {
   analyzeArticleBlocks,
+  generateTitleOptions,
   translateArticleBlocks
 } from "../../lib/translation-pipeline";
 
 describe("translateArticleBlocks", () => {
-  it("runs bulk translation then title generation in order", async () => {
+  it("runs only bulk translation during article translation", async () => {
     const callModel = vi
       .fn()
       .mockResolvedValueOnce({
@@ -13,31 +14,6 @@ describe("translateArticleBlocks", () => {
             id: "title-1",
             text: "台湾 朝ごはんを楽しむ台北案内",
             notes: ["bulk polished"]
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        options: [
-          {
-            id: "stable",
-            label: "穩健型",
-            text: "台北で楽しむ朝ごはん案内",
-            focus: "穩健型",
-            keywordsUsed: ["台湾 朝ごはん"]
-          },
-          {
-            id: "click",
-            label: "吸引型",
-            text: "台湾らしい朝を楽しむなら 台北朝ごはん案内",
-            focus: "吸引型",
-            keywordsUsed: ["台湾 朝ごはん"]
-          },
-          {
-            id: "search",
-            label: "搜尋型",
-            text: "台北 朝ごはん おすすめ 台湾旅行で外せない一軒",
-            focus: "搜尋型",
-            keywordsUsed: ["台湾 朝ごはん"]
           }
         ]
       });
@@ -67,15 +43,14 @@ describe("translateArticleBlocks", () => {
       },
     );
 
-    expect(callModel).toHaveBeenCalledTimes(2);
+    expect(callModel).toHaveBeenCalledTimes(1);
     expect(callModel.mock.calls[0]?.[0]?.kind).toBe("bulk_translation");
-    expect(callModel.mock.calls[1]?.[0]?.kind).toBe("titles");
     expect(callModel.mock.calls[0]?.[0]?.prompt).toContain("title-1");
     expect(result.blocks[0]?.polishedText).toBe("台湾 朝ごはんを楽しむ台北案内");
     expect(result.blocks[0]?.trendSuggestions).toEqual(["台湾 朝ごはん"]);
     expect(result.blocks[0]?.notes).toEqual(["bulk polished"]);
     expect(result.keywords[0]?.phrase).toBe("台湾 朝ごはん");
-    expect(result.titleOptions).toHaveLength(3);
+    expect(result.titleOptions).toEqual([]);
     expect(result.validation).toBeNull();
   });
 
@@ -88,31 +63,6 @@ describe("translateArticleBlocks", () => {
             id: "title-1",
             text: "",
             notes: []
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        options: [
-          {
-            id: "stable",
-            label: "穩健型",
-            text: "台北で楽しむ朝ごはん案内",
-            focus: "穩健型",
-            keywordsUsed: []
-          },
-          {
-            id: "click",
-            label: "吸引型",
-            text: "台湾らしい朝を楽しむなら 台北朝ごはん案内",
-            focus: "吸引型",
-            keywordsUsed: []
-          },
-          {
-            id: "search",
-            label: "搜尋型",
-            text: "台北 朝ごはん おすすめ 台湾旅行で外せない一軒",
-            focus: "搜尋型",
-            keywordsUsed: []
           }
         ]
       });
@@ -144,15 +94,6 @@ describe("translateArticleBlocks", () => {
     const callModel = vi
       .fn()
       .mockResolvedValueOnce({
-        blocks: [
-          {
-            id: "title-1",
-            text: "台湾 朝ごはんを楽しむ台北案内",
-            notes: []
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
         options: [
           {
             label: "穩健型",
@@ -175,14 +116,14 @@ describe("translateArticleBlocks", () => {
         ]
       });
 
-    const result = await translateArticleBlocks(
+    const result = await generateTitleOptions(
       [
         {
           id: "title-1",
           type: "title",
           sourceText: "台北早餐推薦",
-          translatedText: null,
-          polishedText: null,
+          translatedText: "台湾 朝ごはんを楽しむ台北案内",
+          polishedText: "台湾 朝ごはんを楽しむ台北案内",
           trendSuggestions: [],
           notes: []
         }
@@ -193,8 +134,8 @@ describe("translateArticleBlocks", () => {
       },
     );
 
-    expect(result.titleOptions).toHaveLength(3);
-    expect(result.titleOptions.map((option) => option.id)).toEqual([
+    expect(result).toHaveLength(3);
+    expect(result.map((option) => option.id)).toEqual([
       "title-option-1",
       "title-option-2",
       "title-option-3"
@@ -215,31 +156,6 @@ describe("translateArticleBlocks", () => {
             id: "paragraph-2",
             text: "二段目",
             notes: []
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        options: [
-          {
-            id: "stable",
-            label: "穩健型",
-            text: "長文記事のまとめ",
-            focus: "穩健型",
-            keywordsUsed: []
-          },
-          {
-            id: "click",
-            label: "吸引型",
-            text: "台湾の魅力がもっと見えてくる長文記事",
-            focus: "吸引型",
-            keywordsUsed: []
-          },
-          {
-            id: "search",
-            label: "搜尋型",
-            text: "台湾旅行 おすすめ 長文ガイド",
-            focus: "搜尋型",
-            keywordsUsed: []
           }
         ]
       });
@@ -271,9 +187,8 @@ describe("translateArticleBlocks", () => {
       },
     );
 
-    expect(callModel).toHaveBeenCalledTimes(2);
+    expect(callModel).toHaveBeenCalledTimes(1);
     expect(callModel.mock.calls[0]?.[0]?.kind).toBe("bulk_translation");
-    expect(callModel.mock.calls[1]?.[0]?.kind).toBe("titles");
     expect(result.blocks.map((block) => block.polishedText)).toEqual(["一段目", "二段目"]);
   });
 
@@ -303,34 +218,6 @@ describe("translateArticleBlocks", () => {
             text: `${id}-ja`,
             notes: []
           }))
-        };
-      }
-
-      if (input.kind === "titles") {
-        return {
-          options: [
-            {
-              id: "stable",
-              label: "穩健型",
-              text: "長文記事のまとめ",
-              focus: "穩健型",
-              keywordsUsed: []
-            },
-            {
-              id: "click",
-              label: "吸引型",
-              text: "台湾の魅力がもっと見えてくる長文記事",
-              focus: "吸引型",
-              keywordsUsed: []
-            },
-            {
-              id: "search",
-              label: "搜尋型",
-              text: "台湾旅行 おすすめ 長文ガイド",
-              focus: "搜尋型",
-              keywordsUsed: []
-            }
-          ]
         };
       }
 
@@ -390,31 +277,6 @@ describe("translateArticleBlocks", () => {
             id: "title-1",
             text: "台北の朝ごはん案内",
             notes: "rewritten for tone"
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        options: [
-          {
-            id: "stable",
-            label: "穩健型",
-            text: "台北で楽しむ朝ごはん案内",
-            focus: "穩健型",
-            keywordsUsed: []
-          },
-          {
-            id: "click",
-            label: "吸引型",
-            text: "台湾らしい朝を楽しむなら 台北朝ごはん案内",
-            focus: "吸引型",
-            keywordsUsed: []
-          },
-          {
-            id: "search",
-            label: "搜尋型",
-            text: "台北 朝ごはん おすすめ 台湾旅行で外せない一軒",
-            focus: "搜尋型",
-            keywordsUsed: []
           }
         ]
       });

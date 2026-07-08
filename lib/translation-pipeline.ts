@@ -388,14 +388,34 @@ export async function translateArticleBlocks(
     };
   });
 
+  return {
+    blocks: results,
+    keywords: chosenKeywords,
+    titleOptions: [],
+    validation: null
+  };
+}
+
+export async function generateTitleOptions(
+  blocks: ArticleBlock[],
+  options: PipelineOptions
+) {
+  const callModel = createCallModel(options.callModel);
+  const chosenKeywords = dedupeKeywords(options.keywords ?? []);
+  const selectedKeywords = chosenKeywords
+    .filter((keyword) => keyword.selected)
+    .map((keyword) => keyword.phrase);
   const sourceTitle =
     blocks.find((block) => block.type === "title")?.sourceText ??
     blocks[0]?.sourceText ??
     "";
   const polishedTitle =
-    results.find((block) => block.type === "title")?.polishedText ??
-    results[0]?.polishedText ??
+    blocks.find((block) => block.type === "title")?.polishedText ??
+    blocks.find((block) => block.type === "title")?.translatedText ??
+    blocks[0]?.polishedText ??
+    blocks[0]?.translatedText ??
     sourceTitle;
+
   const titleOptionBundle = (await callModel({
     kind: "titles",
     prompt: buildTitleOptionsPrompt({
@@ -407,10 +427,5 @@ export async function translateArticleBlocks(
       "Return valid JSON only. All three titles must be publication-ready, SEO-aware, faithful to the article, and naturally useful for Japanese readers."
   })) as { options: TitleOption[] };
 
-  return {
-    blocks: results,
-    keywords: chosenKeywords,
-    titleOptions: normalizeTitleOptions(titleOptionBundle.options),
-    validation: null
-  };
+  return normalizeTitleOptions(titleOptionBundle.options);
 }

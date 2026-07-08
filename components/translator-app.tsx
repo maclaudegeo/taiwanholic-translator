@@ -75,6 +75,35 @@ export function TranslatorApp() {
     setSelectedTitle("");
   };
 
+  const loadTitleOptions = async (
+    nextBlocks: ArticleBlock[],
+    nextKeywords: KeywordSuggestion[]
+  ) => {
+    try {
+      const response = await fetch("/api/titles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ blocks: nextBlocks, keywords: nextKeywords })
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        titleOptions: TitleOption[];
+      };
+
+      setTitleOptions(payload.titleOptions);
+      setSelectedTitle((current) => current || payload.titleOptions[0]?.text || "");
+      setStatus("翻譯完成，請檢查日文結果、標題和關鍵字使用情況。");
+    } catch {
+      setStatus("翻譯完成，標題建議暫時還沒整理出來。");
+    }
+  };
+
   const handleAnalyze = () => {
     if (!file) {
       setError("請先選擇一個 .docx 檔案。");
@@ -152,9 +181,14 @@ export function TranslatorApp() {
 
         setBlocks(payload.blocks);
         setKeywords(payload.keywords);
-        setTitleOptions(payload.titleOptions);
-        setSelectedTitle(payload.titleOptions[0]?.text ?? "");
-        setStatus("翻譯完成，請檢查日文結果、標題和關鍵字使用情況。");
+        setTitleOptions([]);
+        setSelectedTitle(
+          payload.blocks.find((block) => block.type === "title")?.polishedText ??
+            payload.blocks[0]?.polishedText ??
+            ""
+        );
+        setStatus("翻譯完成，正在整理標題...");
+        void loadTitleOptions(payload.blocks, payload.keywords);
       } catch {
         setError("翻譯連線中斷了。文章較長時可能需要較久，請再試一次。");
         setStatus("翻譯中斷，請重新再試一次。");

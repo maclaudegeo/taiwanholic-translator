@@ -43,26 +43,26 @@ function localizeKeywordReason(keyword: KeywordSuggestion) {
 
   if (!reason) {
     return keyword.source === "google_trends"
-      ? "近期日本旅遊搜尋中常見，適合當作這篇文章的日文關鍵字。"
-      : "這個詞和文章主題高度相關，適合自然放進日文內容。";
+      ? "最近の日本語旅行検索でよく見られる語で、このテーマにも自然になじみます。"
+      : "記事テーマとの関連が強く、日本語本文にも自然に入れやすい語です。";
   }
 
   const normalized = reason.toLowerCase();
 
   if (normalized.includes("broad, high-volume term")) {
-    return "這是搜尋量較大的日本旅遊詞，和台灣旅遊主題直接相關。";
+    return "検索量の大きい定番語で、台湾旅行の記事テーマにもそのまま結びつきます。";
   }
 
   if (normalized.includes("highly relevant") && normalized.includes("targets food enthusiasts")) {
-    return "和文章主題非常貼近，能直接對到想找台北美食的日本讀者。";
+    return "記事テーマとの相性が高く、台北グルメを探す読者にもそのまま届きやすい語です。";
   }
 
   if (normalized.includes("emphasizes the food aspect")) {
-    return "這個詞會把重點放在台灣美食旅行，很適合這篇文章的主題方向。";
+    return "台湾グルメ旅という印象をはっきり出せるので、今回の記事の軸とよく合います。";
   }
 
   if (normalized.includes("recent japan travel search phrase")) {
-    return "這是近期日本旅遊搜尋常見詞，適合自然放進標題或內文。";
+    return "最近の旅行検索でも使われやすく、タイトルや本文にも自然に入れやすい語です。";
   }
 
   return reason;

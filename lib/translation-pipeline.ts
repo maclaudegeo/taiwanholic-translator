@@ -185,8 +185,8 @@ function buildFallbackKeywords(trendCandidates: string[]) {
       source: "google_trends" as const,
       reason:
         index < 3
-          ? "近期日本旅遊搜尋中常見，且可作為這篇文章的日文關鍵字參考"
-          : "可作為補充用的日文旅遊搜尋關鍵字",
+          ? "最近の日本語旅行検索でもよく見られ、このテーマの見出しや本文にもなじみやすい語です"
+          : "補助的に使いやすい日本語の旅行検索語です",
       selected: index < 4
     }))
   );

@@ -17,6 +17,7 @@ describe("buildTranslationPrompt", () => {
     expect(prompt).toContain("Do not write like product copy");
     expect(prompt).toContain("具体的な体験");
     expect(prompt).toContain("many blocks should use none");
+    expect(prompt).toContain("not sentence-by-sentence translation");
   });
 });
 
@@ -57,5 +58,6 @@ describe("buildBulkTranslationPrompt", () => {
     expect(prompt).toContain("Howto Taiwan");
     expect(prompt).toContain("Do not write like product copy");
     expect(prompt).toContain("reader able to picture");
+    expect(prompt).toContain("Do not carry over Chinese emotional buildup line by line");
   });
 });

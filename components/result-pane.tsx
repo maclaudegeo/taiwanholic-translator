@@ -13,6 +13,36 @@ type ResultPaneProps = {
   titleOptions: TitleOption[];
 };
 
+function localizeTitleFocus(focus: string, index: number) {
+  const normalized = focus.trim().toLowerCase();
+
+  if (
+    normalized.includes("stable") ||
+    focus.includes("穩健") ||
+    focus.includes("安定")
+  ) {
+    return "穩健版";
+  }
+
+  if (
+    normalized.includes("click") ||
+    focus.includes("吸引") ||
+    focus.includes("點擊")
+  ) {
+    return "吸引版";
+  }
+
+  if (
+    normalized.includes("search") ||
+    focus.includes("搜尋") ||
+    focus.includes("seo")
+  ) {
+    return "SEO 版";
+  }
+
+  return `方案 ${index + 1}`;
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -153,7 +183,7 @@ export function ResultPane({
           </p>
         </div>
         <div className="notes-list">
-          {titleOptions.map((option) => (
+          {titleOptions.map((option, index) => (
             <article key={option.id} className="note-card">
               <label className="title-choice">
                 <input
@@ -166,7 +196,8 @@ export function ResultPane({
               </label>
               <h3>{option.text}</h3>
               <p className="subtle">
-                {option.focus} | {option.keywordsUsed.join("、") || "關鍵字未加入"}
+                方向：{localizeTitleFocus(option.focus, index)} | 已帶入關鍵字：
+                {option.keywordsUsed.join("、") || "尚未帶入"}
               </p>
               <button
                 className="secondary-button inline-button"

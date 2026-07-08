@@ -43,29 +43,51 @@ function localizeKeywordReason(keyword: KeywordSuggestion) {
 
   if (!reason) {
     return keyword.source === "google_trends"
-      ? "最近の日本語旅行検索でよく見られる語で、このテーマにも自然になじみます。"
-      : "記事テーマとの関連が強く、日本語本文にも自然に入れやすい語です。";
+      ? "這是近期日本旅遊搜尋常見的日文詞，和這篇文章主題也能自然搭配。"
+      : "這個詞和文章主題關聯高，放進日文標題或內文都會很自然。";
   }
 
   const normalized = reason.toLowerCase();
 
-  if (normalized.includes("broad, high-volume term")) {
-    return "検索量の大きい定番語で、台湾旅行の記事テーマにもそのまま結びつきます。";
+  if (
+    normalized.includes("broad, high-volume term") ||
+    normalized.includes("recent japan travel search phrase") ||
+    normalized.includes("good general keyword")
+  ) {
+    return "這是搜尋量較高、也很常見的旅遊關鍵字，適合放在標題或前段。";
   }
 
-  if (normalized.includes("highly relevant") && normalized.includes("targets food enthusiasts")) {
-    return "記事テーマとの相性が高く、台北グルメを探す読者にもそのまま届きやすい語です。";
+  if (
+    normalized.includes("highly relevant") ||
+    normalized.includes("targets food enthusiasts") ||
+    normalized.includes("must-eat list") ||
+    normalized.includes("article is a")
+  ) {
+    return "這個詞和文章內容非常貼近，也比較容易吸引正在找這類資訊的讀者。";
   }
 
   if (normalized.includes("emphasizes the food aspect")) {
-    return "台湾グルメ旅という印象をはっきり出せるので、今回の記事の軸とよく合います。";
+    return "這個詞能更清楚帶出美食重點，和文章主軸很搭。";
   }
 
-  if (normalized.includes("recent japan travel search phrase")) {
-    return "最近の旅行検索でも使われやすく、タイトルや本文にも自然に入れやすい語です。";
+  if (
+    normalized.includes("記事全体") ||
+    normalized.includes("記事構成") ||
+    normalized.includes("見出し") ||
+    normalized.includes("導入文") ||
+    normalized.includes("自然に合い") ||
+    normalized.includes("一致度") ||
+    normalized.includes("読者") ||
+    normalized.includes("内容")
+  ) {
+    return keyword.source === "google_trends"
+      ? "這個詞和這篇文章主題相符，也適合拿來強化搜尋表現。"
+      : "這個詞能準確代表文章內容，放進對應段落會比較自然。";
   }
 
-  return reason;
+  return keyword.source === "google_trends"
+    ? "這是可搭配文章使用的日文搜尋詞，建議只在自然的地方帶入，不需要硬塞。"
+    : "這是文章本身很適合延伸使用的關鍵字，系統翻譯時會盡量自然帶入。";
 }
 
 function keywordPlacementLabel(keyword: KeywordSuggestion, index: number) {

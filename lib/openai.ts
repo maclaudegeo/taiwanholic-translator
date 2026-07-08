@@ -19,6 +19,13 @@ function extractJsonPayload(rawText: string) {
   return rawText.trim();
 }
 
+function clipText(value: string, limit = 500) {
+  const normalized = value.trim();
+  return normalized.length > limit
+    ? `${normalized.slice(0, limit)}...`
+    : normalized;
+}
+
 function getConfiguredProviders(): ProviderName[] {
   const rawOrder = process.env.LLM_PROVIDER_ORDER?.trim() || "gemini,openai";
   const requested = rawOrder
@@ -138,7 +145,7 @@ async function requestWithGemini(input: StructuredInput) {
   const parts = getGeminiTextParts(payload);
 
   if (parts.length === 0) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error(`Gemini returned an empty response. Payload: ${clipText(JSON.stringify(payload))}`);
   }
 
   return parts.join("\n").trim();
@@ -167,12 +174,26 @@ export async function requestStructuredData<T>(
   for (const provider of providers) {
     try {
       const rawText = await generateJsonText(provider, input);
-      return schema.parse(JSON.parse(extractJsonPayload(rawText)));
+      const extracted = extractJsonPayload(rawText);
+      let parsed: unknown;
+
+      try {
+        parsed = JSON.parse(extracted);
+      } catch {
+        throw new Error(
+          `${provider} returned non-JSON output: ${clipText(extracted)}`
+        );
+      }
+
+      return schema.parse(parsed);
     } catch (error) {
-      failures.push(summarizeProviderFailure(provider, error));
+      const summary = summarizeProviderFailure(provider, error);
+      failures.push(summary);
+      console.error("[llm-provider-failure]", summary);
     }
   }
 
+  console.error("[llm-all-providers-failed]", failures.join(" | "));
   throw new Error(
     `All model providers failed. ${failures.join(" | ")}`
   );

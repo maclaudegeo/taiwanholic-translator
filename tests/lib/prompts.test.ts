@@ -1,7 +1,8 @@
 import {
   buildBulkTranslationPrompt,
   buildTitleOptionsPrompt,
-  buildTranslationPrompt
+  buildTranslationPrompt,
+  buildValidationPrompt
 } from "../../lib/prompts";
 
 describe("buildTranslationPrompt", () => {
@@ -66,5 +67,26 @@ describe("buildBulkTranslationPrompt", () => {
     expect(prompt).toContain("help the reader choose by implying first picks");
     expect(prompt).toContain("Do not add extra ranking sections");
     expect(prompt).toContain("reshape it into more natural Japanese");
+  });
+});
+
+describe("buildValidationPrompt", () => {
+  it("asks for japanese-editor-vs-ai validation plus adjusted blocks", () => {
+    const prompt = buildValidationPrompt({
+      sourceTitle: "台灣無印良品伴手禮推薦",
+      blocks: [
+        {
+          id: "title-1",
+          type: "title",
+          sourceText: "台湾MUJIで見つけるおみやげ案内"
+        }
+      ],
+      selectedKeywords: ["台湾 MUJI"]
+    });
+
+    expect(prompt).toContain("strict Japanese editorial reviewer");
+    expect(prompt).toContain("AI-translated article");
+    expect(prompt).toContain("Do not add new sections");
+    expect(prompt).toContain("final adjusted blocks");
   });
 });

@@ -32,6 +32,14 @@ export type TitleOption = {
   keywordsUsed: string[];
 };
 
+export type ValidationReport = {
+  verdict: string;
+  japaneseEditorScore: number;
+  aiFeelScore: number;
+  readerImpression: string;
+  suggestions: string[];
+};
+
 export type AnalysisPayload = {
   blocks: ArticleBlock[];
   keywords: KeywordSuggestion[];
@@ -41,6 +49,7 @@ export type TranslationPayload = {
   blocks: ArticleBlock[];
   keywords: KeywordSuggestion[];
   titleOptions: TitleOption[];
+  validation: ValidationReport | null;
 };
 
 export function isTrendEligibleBlock(type: BlockType) {

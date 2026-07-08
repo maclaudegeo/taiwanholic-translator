@@ -4,11 +4,13 @@ import type {
   ArticleBlock,
   KeywordSuggestion,
   TitleOption,
+  ValidationReport,
   TranslationPayload
 } from "./article-blocks";
 import {
   buildBulkTranslationPrompt,
   buildKeywordSuggestionPrompt,
+  buildValidationPrompt,
   buildTitleOptionsPrompt
 } from "./prompts";
 import { fetchTrendCandidates } from "./trends";
@@ -18,9 +20,17 @@ type TranslationCallResult =
   | { text: string; notes: string[] }
   | { blocks: { id: string; text: string; notes: string[] }[] }
   | { keywords: KeywordSuggestion[] }
-  | { options: TitleOption[] };
+  | { options: TitleOption[] }
+  | {
+      verdict: string;
+      japaneseEditorScore: number;
+      aiFeelScore: number;
+      readerImpression: string;
+      suggestions: string[];
+      blocks: { id: string; text: string; notes: string[] }[];
+    };
 
-type CallKind = "bulk_translation" | "keywords" | "titles";
+type CallKind = "bulk_translation" | "keywords" | "titles" | "validation";
 
 type PipelineCall = {
   prompt: string;
@@ -86,6 +96,26 @@ function createCallModel(
                 keywordsUsed: z.array(z.string()).default([])
               })
             ).length(3)
+          }),
+          { prompt, instructions }
+        );
+      }
+
+      if (kind === "validation") {
+        return requestStructuredData(
+          z.object({
+            verdict: z.string().min(1),
+            japaneseEditorScore: z.number().min(1).max(10),
+            aiFeelScore: z.number().min(0).max(10),
+            readerImpression: z.string().min(1),
+            suggestions: z.array(z.string().min(1)).max(5),
+            blocks: z.array(
+              z.object({
+                id: z.string().min(1),
+                text: z.string().default(""),
+                notes: noteListSchema.default([])
+              })
+            )
           }),
           { prompt, instructions }
         );
@@ -191,6 +221,22 @@ function normalizeTitleOptions(options: TitleOption[]) {
     focus: normalizeModelText(option.focus) || `方向 ${index + 1}`,
     keywordsUsed: option.keywordsUsed ?? []
   }));
+}
+
+function normalizeValidationReport(input: {
+  verdict: string;
+  japaneseEditorScore: number;
+  aiFeelScore: number;
+  readerImpression: string;
+  suggestions: string[];
+}): ValidationReport {
+  return {
+    verdict: normalizeModelText(input.verdict),
+    japaneseEditorScore: Math.max(1, Math.min(10, Math.round(input.japaneseEditorScore))),
+    aiFeelScore: Math.max(0, Math.min(10, Math.round(input.aiFeelScore))),
+    readerImpression: normalizeModelText(input.readerImpression),
+    suggestions: input.suggestions.map(normalizeModelText).filter(Boolean).slice(0, 5)
+  };
 }
 
 function chunkArticleBlocks(blocks: ArticleBlock[]) {
@@ -367,9 +413,60 @@ export async function translateArticleBlocks(
       "Return valid JSON only. All three titles must be publication-ready, SEO-aware, faithful to the article, and naturally useful for Japanese readers."
   })) as { options: TitleOption[] };
 
+  const validationBundle = (await callModel({
+    kind: "validation",
+    prompt: buildValidationPrompt({
+      sourceTitle,
+      blocks: results.map((block) => ({
+        id: block.id,
+        type: block.type,
+        sourceText: block.polishedText ?? block.translatedText ?? block.sourceText
+      })),
+      selectedKeywords
+    }),
+    instructions:
+      "Return valid JSON only. Evaluate like a strict Japanese editor, score AI feel honestly, and lightly improve the wording where needed without changing the article structure."
+  })) as {
+    verdict: string;
+    japaneseEditorScore: number;
+    aiFeelScore: number;
+    readerImpression: string;
+    suggestions: string[];
+    blocks: { id: string; text: string; notes: string[] }[];
+  };
+
+  const validationMap = new Map(
+    validationBundle.blocks.map((block) => [
+      block.id,
+      {
+        text: normalizeModelText(block.text),
+        notes: normalizeModelNotes(block.notes)
+      }
+    ])
+  );
+
+  const finalBlocks = results.map((block) => {
+    const validated = validationMap.get(block.id);
+
+    if (!validated?.text) {
+      return block;
+    }
+
+    return {
+      ...block,
+      translatedText: validated.text,
+      polishedText: validated.text,
+      trendSuggestions: selectedKeywords.filter((keyword) =>
+        validated.text.includes(keyword)
+      ),
+      notes: [...block.notes, ...validated.notes]
+    };
+  });
+
   return {
-    blocks: results,
+    blocks: finalBlocks,
     keywords: chosenKeywords,
-    titleOptions: normalizeTitleOptions(titleOptionBundle.options)
+    titleOptions: normalizeTitleOptions(titleOptionBundle.options),
+    validation: normalizeValidationReport(validationBundle)
   };
 }

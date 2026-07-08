@@ -173,3 +173,21 @@ export function buildTitleOptionsPrompt(input: {
     "Output JSON with key options. Each option needs label, text, focus, and keywordsUsed."
   ].join("\n");
 }
+
+export function buildValidationPrompt(input: {
+  sourceTitle: string;
+  blocks: BulkPromptBlock[];
+  selectedKeywords: string[];
+}) {
+  return [
+    "Task: act as a strict Japanese editorial reviewer for a Taiwan travel media article.",
+    "Judge whether this reads more like an article written or heavily edited by a Japanese travel editor, or more like an AI-translated article.",
+    "Evaluate from the perspective of Japanese readers who are sensitive to travel-media tone.",
+    "Check for AI feel, translation feel, keyword overexposure, unnatural diction, and whether the article truly sounds like Japanese editorial writing.",
+    "If a block needs light improvement, rewrite only that block. Keep the original structure and meaning. Do not add new sections.",
+    "Return a concise verdict, two scores, reader impression, a few short suggestions, and the final adjusted blocks.",
+    `Original Chinese title: ${input.sourceTitle}`,
+    `Selected keywords: ${input.selectedKeywords.join(", ") || "none"}`,
+    `Current Japanese blocks: ${JSON.stringify(input.blocks)}`
+  ].join("\n");
+}

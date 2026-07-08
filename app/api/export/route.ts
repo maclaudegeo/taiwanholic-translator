@@ -13,14 +13,43 @@ const blockSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const payload = z
-      .object({
-        blocks: z.array(blockSchema).min(1),
-        titleOverride: z.string().optional()
-      })
-      .parse(await request.json());
+    const contentType = request.headers.get("content-type") ?? "";
+    const payloadSchema = z.object({
+      blocks: z.array(blockSchema).min(1),
+      titleOverride: z.string().optional()
+    });
 
-    const buffer = await buildDocxBuffer(payload.blocks, payload.titleOverride);
+    let payload: z.infer<typeof payloadSchema>;
+    let originalBuffer: Buffer | undefined;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      payload = payloadSchema.parse({
+        blocks: JSON.parse(String(formData.get("blocks") ?? "[]")),
+        titleOverride:
+          typeof formData.get("titleOverride") === "string"
+            ? String(formData.get("titleOverride"))
+            : undefined
+      });
+
+      const file = formData.get("file");
+
+      if (file instanceof File) {
+        const fileBuffer =
+          typeof file.arrayBuffer === "function"
+            ? await file.arrayBuffer()
+            : await new Response(file).arrayBuffer();
+        originalBuffer = Buffer.from(fileBuffer);
+      }
+    } else {
+      payload = payloadSchema.parse(await request.json());
+    }
+
+    const buffer = await buildDocxBuffer(
+      payload.blocks,
+      payload.titleOverride,
+      originalBuffer
+    );
 
     return new Response(new Uint8Array(buffer), {
       status: 200,

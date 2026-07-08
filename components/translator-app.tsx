@@ -163,7 +163,7 @@ export function TranslatorApp() {
   };
 
   const handleDownload = async () => {
-    if (!hasTranslation) {
+    if (!hasTranslation || !file) {
       return;
     }
 
@@ -171,12 +171,14 @@ export function TranslatorApp() {
     setStatus("正在準備匯出檔案...");
 
     try {
+      const formData = new FormData();
+      formData.set("file", file);
+      formData.set("blocks", JSON.stringify(blocks));
+      formData.set("titleOverride", selectedTitle);
+
       const response = await fetch("/api/export", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ blocks, titleOverride: selectedTitle })
+        body: formData
       });
 
       if (!response.ok) {

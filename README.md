@@ -6,8 +6,9 @@ A docx-based translation workspace for Taiwan travel articles. The app keeps the
 
 1. Install dependencies with `npm install`
 2. Copy `.env.example` to `.env.local`
-3. Add your `OPENAI_API_KEY`
-4. Run `npm run dev`
+3. Add your `GEMINI_API_KEY` if you want the default low-cost path
+4. Optional: add `OPENAI_API_KEY` as a fallback provider
+5. Run `npm run dev`
 
 ## Deploy
 
@@ -15,15 +16,18 @@ Recommended: deploy to `Vercel`.
 
 1. Create a Vercel project from this folder or from a GitHub repository.
 2. Add these Environment Variables in Vercel:
+   `GEMINI_API_KEY`
+   `GEMINI_MODEL` with value `gemini-2.5-flash` if you want to keep the current default
    `OPENAI_API_KEY`
-   `OPENAI_MODEL` with value `gpt-5.5` if you want to keep the current default
+   `OPENAI_MODEL` with value `gpt-5.5` if you want OpenAI fallback
+   `LLM_PROVIDER_ORDER` with value `gemini,openai`
 3. Deploy.
 
 After deployment, the app runs on Vercel's servers, so teammates can keep using it even when your computer is asleep.
 
 Notes:
 `app/api/analyze/route.ts` and `app/api/translate/route.ts` export `maxDuration = 60` for longer cloud executions.
-This app uses your OpenAI API key on the server side, so if the URL is shared broadly, usage costs will come from your OpenAI account.
+This app uses your configured model provider keys on the server side. If the URL is shared broadly, usage costs or rate limits will come from those accounts.
 
 ## Workflow
 

@@ -38,12 +38,12 @@ describe("POST /api/translate", () => {
     expect(response.status).toBe(400);
   });
 
-  it("maps quota errors to a friendly Chinese message", async () => {
+  it("maps provider quota errors to a friendly Chinese message", async () => {
     const translateSpy = vi
       .spyOn(pipeline, "translateArticleBlocks")
       .mockRejectedValueOnce(
         new Error(
-          "429 You exceeded your current quota, please check your plan and billing details."
+          "All model providers failed. gemini: 429 RESOURCE_EXHAUSTED | openai: 429 You exceeded your current quota"
         )
       );
 
@@ -68,7 +68,7 @@ describe("POST /api/translate", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(500);
-    expect(payload.error).toMatch(/API 額度已用完/);
+    expect(payload.error).toMatch(/翻譯服務暫時無法使用/);
 
     translateSpy.mockRestore();
   });

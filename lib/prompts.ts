@@ -121,6 +121,7 @@ export function buildBulkTranslationPrompt({
     "Preserve the original author's facts, observations, and practical information, but rewrite the rhetoric into natural Japanese editorial pacing.",
     "Do not let every recommendation land at the same intensity. Some items can sound essential, some easy to try, some better for a specific taste or timing.",
     "When the article is a recommendation list, help the reader choose by implying first picks, best-for-who distinctions, or easier entry points where the source supports that guidance.",
+    "Keep this guidance inside the original article structure. Do not add extra ranking sections, editor memo blocks, or appended summaries that were not present in the source.",
     `Selected SEO keywords: ${selectedKeywords.join(", ") || "none"}`,
     "Use selected keywords only where they genuinely fit the content, especially in titles, headings, SEO descriptions, and captions. Never force keyword stuffing or awkward Japanese.",
     "Make the reader able to picture the scene, the taste, the texture, the buying situation, or the stay whenever the source gives enough material.",

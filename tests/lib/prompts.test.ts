@@ -64,5 +64,6 @@ describe("buildBulkTranslationPrompt", () => {
     expect(prompt).toContain("Do not carry over Chinese emotional buildup line by line");
     expect(prompt).toContain("Do not let every recommendation land at the same intensity");
     expect(prompt).toContain("help the reader choose by implying first picks");
+    expect(prompt).toContain("Do not add extra ranking sections");
   });
 });

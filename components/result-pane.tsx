@@ -80,6 +80,48 @@ export function ResultPane({
     onTitleChange(titleId === "custom" ? customTitle.trim() : (fallbackText ?? ""));
   };
 
+  const renderArticleBlock = (block: ArticleBlock) => {
+    const content = highlightKeywords(block.polishedText ?? "", selectedKeywords);
+
+    if (block.type === "title") {
+      return (
+        <header key={block.id} className="article-title-block">
+          <h1>{content}</h1>
+        </header>
+      );
+    }
+
+    if (block.type === "heading") {
+      return (
+        <section key={block.id} className="article-section-block">
+          <h2>{content}</h2>
+        </section>
+      );
+    }
+
+    if (block.type === "seo_description") {
+      return (
+        <section key={block.id} className="article-seo-block">
+          <p>{content}</p>
+        </section>
+      );
+    }
+
+    if (block.type === "caption") {
+      return (
+        <figure key={block.id} className="article-caption-block">
+          <figcaption>{content}</figcaption>
+        </figure>
+      );
+    }
+
+    return (
+      <p key={block.id} className="article-paragraph-block">
+        {content}
+      </p>
+    );
+  };
+
   return (
     <section className="panel" aria-label="Translation results">
       <div className="section-heading">
@@ -97,29 +139,11 @@ export function ResultPane({
         ))}
       </div>
 
-      <div className="results-list">
-        {displayBlocks.map((block) => (
-          <article key={block.id} className="block-card">
-            <div className="block-meta">
-              <strong>
-                {block.type === "title"
-                  ? "標題"
-                  : block.type === "heading"
-                    ? "小標"
-                    : block.type === "caption"
-                      ? "圖說"
-                      : block.type === "seo_description"
-                        ? "SEO 描述"
-                        : "內文"}
-              </strong>
-              <span className="block-type">{block.type}</span>
-            </div>
-            <div className="final-copy">
-              <p>{highlightKeywords(block.polishedText ?? "", selectedKeywords)}</p>
-            </div>
-          </article>
-        ))}
-      </div>
+      <article className="article-preview">
+        <div className="article-body">
+          {displayBlocks.map((block) => renderArticleBlock(block))}
+        </div>
+      </article>
 
       <div className="title-options">
         <div className="section-heading">

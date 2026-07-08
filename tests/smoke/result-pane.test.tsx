@@ -52,6 +52,7 @@ describe("ResultPane", () => {
       />
     );
 
+    expect(screen.getByRole("heading", { level: 1, name: /台北で楽しむ朝ごはん案内/i })).toBeInTheDocument();
     expect(screen.getByText(/標題建議/i)).toBeInTheDocument();
     expect(screen.getAllByLabelText(/選這個標題/i)).toHaveLength(3);
     expect(screen.getByLabelText(/使用自訂標題/i)).toBeInTheDocument();

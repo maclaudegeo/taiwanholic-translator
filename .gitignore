@@ -1,4 +1,5 @@
 node_modules
 .next
+.next.dev-corrupt-backup-20260708-0938
 .env.local
 coverage

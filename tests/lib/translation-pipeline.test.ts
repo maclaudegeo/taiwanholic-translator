@@ -281,6 +281,106 @@ describe("translateArticleBlocks", () => {
     expect(result.blocks.map((block) => block.polishedText)).toEqual(["一段目", "二段目"]);
   });
 
+  it("translates long-article chunks with limited parallelism to reduce timeout risk", async () => {
+    let activeBulkCalls = 0;
+    let maxConcurrentBulkCalls = 0;
+
+    const callModel = vi.fn(async (input: { kind: string; prompt: string }) => {
+      if (input.kind === "bulk_translation") {
+        activeBulkCalls += 1;
+        maxConcurrentBulkCalls = Math.max(
+          maxConcurrentBulkCalls,
+          activeBulkCalls
+        );
+
+        const ids = Array.from(input.prompt.matchAll(/"id":"([^"]+)"/g)).map(
+          (match) => match[1] ?? ""
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        activeBulkCalls -= 1;
+
+        return {
+          blocks: ids.map((id) => ({
+            id,
+            text: `${id}-ja`,
+            notes: []
+          }))
+        };
+      }
+
+      return {
+        options: [
+          {
+            id: "stable",
+            label: "穩健型",
+            text: "長文記事のまとめ",
+            focus: "穩健型",
+            keywordsUsed: []
+          },
+          {
+            id: "click",
+            label: "吸引型",
+            text: "台湾の魅力がもっと見えてくる長文記事",
+            focus: "吸引型",
+            keywordsUsed: []
+          },
+          {
+            id: "search",
+            label: "搜尋型",
+            text: "台湾旅行 おすすめ 長文ガイド",
+            focus: "搜尋型",
+            keywordsUsed: []
+          }
+        ]
+      };
+    });
+
+    const result = await translateArticleBlocks(
+      [
+        {
+          id: "paragraph-1",
+          type: "paragraph",
+          sourceText: "甲".repeat(2600),
+          translatedText: null,
+          polishedText: null,
+          trendSuggestions: [],
+          notes: []
+        },
+        {
+          id: "paragraph-2",
+          type: "paragraph",
+          sourceText: "乙".repeat(2600),
+          translatedText: null,
+          polishedText: null,
+          trendSuggestions: [],
+          notes: []
+        },
+        {
+          id: "paragraph-3",
+          type: "paragraph",
+          sourceText: "丙".repeat(2600),
+          translatedText: null,
+          polishedText: null,
+          trendSuggestions: [],
+          notes: []
+        }
+      ],
+      {
+        callModel,
+        keywords: []
+      }
+    );
+
+    expect(maxConcurrentBulkCalls).toBeGreaterThan(1);
+    expect(result.blocks.map((block) => block.polishedText)).toEqual([
+      "paragraph-1-ja",
+      "paragraph-2-ja",
+      "paragraph-3-ja"
+    ]);
+  });
+
   it("normalizes note strings from the model into arrays", async () => {
     const callModel = vi
       .fn()

@@ -36,6 +36,7 @@ type PipelineOptions = {
 
 const MAX_BULK_TRANSLATION_CHARS = 3200;
 const MAX_BULK_TRANSLATION_BLOCKS = 8;
+const BULK_TRANSLATION_CONCURRENCY = 3;
 
 const noteListSchema = z
   .union([z.array(z.string()), z.string(), z.null(), z.undefined()])
@@ -222,6 +223,29 @@ function chunkArticleBlocks(blocks: ArticleBlock[]) {
   return chunks;
 }
 
+async function mapWithConcurrency<TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  mapper: (item: TInput, index: number) => Promise<TOutput>
+) {
+  const results: TOutput[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex] as TInput, currentIndex);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker())
+  );
+
+  return results;
+}
+
 export async function analyzeArticleBlocks(
   blocks: ArticleBlock[],
   options: PipelineOptions
@@ -277,21 +301,26 @@ export async function translateArticleBlocks(
   const translatedMap = new Map<string, { text: string; notes: string[] }>();
   const blockChunks = chunkArticleBlocks(blocks);
 
-  for (const chunk of blockChunks) {
-    const translatedBundle = (await callModel({
-      kind: "bulk_translation",
-      prompt: buildBulkTranslationPrompt({
-        blocks: chunk.map((block) => ({
-          id: block.id,
-          type: block.type,
-          sourceText: block.sourceText
-        })),
-        selectedKeywords
-      }),
-      instructions:
-        "Return valid JSON only. Translate and polish the whole article chunk in one pass. Preserve every block id and keep the Japanese natural, faithful, and publication-ready."
-    })) as { blocks: { id: string; text: string; notes: string[] }[] };
+  const translatedBundles = (await mapWithConcurrency(
+    blockChunks,
+    BULK_TRANSLATION_CONCURRENCY,
+    async (chunk) =>
+      (await callModel({
+        kind: "bulk_translation",
+        prompt: buildBulkTranslationPrompt({
+          blocks: chunk.map((block) => ({
+            id: block.id,
+            type: block.type,
+            sourceText: block.sourceText
+          })),
+          selectedKeywords
+        }),
+        instructions:
+          "Return valid JSON only. Translate and polish the whole article chunk in one pass. Preserve every block id and keep the Japanese natural, faithful, and publication-ready."
+      })) as { blocks: { id: string; text: string; notes: string[] }[] }
+  )) as { blocks: { id: string; text: string; notes: string[] }[] }[];
 
+  for (const translatedBundle of translatedBundles) {
     for (const block of translatedBundle.blocks) {
       translatedMap.set(block.id, {
         text: normalizeModelText(block.text),

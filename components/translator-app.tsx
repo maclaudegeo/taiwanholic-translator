@@ -1,0 +1,255 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import type {
+  ArticleBlock,
+  KeywordSuggestion,
+  TitleOption
+} from "../lib/article-blocks";
+import { NotesPane } from "./notes-pane";
+import { ResultPane } from "./result-pane";
+import { UploadForm } from "./upload-form";
+
+function upsertManualKeyword(
+  keywords: KeywordSuggestion[],
+  phrase: string
+): KeywordSuggestion[] {
+  const normalized = phrase.trim();
+
+  if (!normalized) {
+    return keywords;
+  }
+
+  const exists = keywords.some(
+    (keyword) => keyword.phrase.toLowerCase() === normalized.toLowerCase()
+  );
+
+  if (exists) {
+    return keywords.map((keyword) =>
+      keyword.phrase.toLowerCase() === normalized.toLowerCase()
+        ? { ...keyword, selected: true }
+        : keyword
+    );
+  }
+
+  return [
+    ...keywords,
+    {
+      phrase: normalized,
+      source: "manual",
+      reason: "由使用者手動補充",
+      selected: true
+    }
+  ];
+}
+
+export function TranslatorApp() {
+  const [file, setFile] = useState<File | null>(null);
+  const [blocks, setBlocks] = useState<ArticleBlock[]>([]);
+  const [keywords, setKeywords] = useState<KeywordSuggestion[]>([]);
+  const [titleOptions, setTitleOptions] = useState<TitleOption[]>([]);
+  const [selectedTitle, setSelectedTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("可以開始上傳檔案");
+  const [includeTrendSuggestions, setIncludeTrendSuggestions] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const hasAnalysis = blocks.length > 0 && keywords.length > 0;
+  const hasTranslation = blocks.some((block) => Boolean(block.polishedText));
+  const stage = hasTranslation
+    ? "translated"
+    : isPending && hasAnalysis
+      ? "translating"
+      : hasAnalysis
+        ? "keywords"
+        : isPending
+          ? "analyzing"
+          : file
+            ? "ready"
+            : "idle";
+
+  const resetResults = () => {
+    setBlocks([]);
+    setKeywords([]);
+    setTitleOptions([]);
+    setSelectedTitle("");
+  };
+
+  const handleAnalyze = () => {
+    if (!file) {
+      setError("請先選擇一個 .docx 檔案。");
+      return;
+    }
+
+    setError(null);
+    setStatus("正在讀取文章並整理關鍵字建議...");
+    resetResults();
+
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("file", file);
+        formData.set("includeTrendSuggestions", String(includeTrendSuggestions));
+
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json()) as { error?: string };
+          setError(payload.error ?? "文章分析失敗。");
+          setStatus("請重新上傳檔案後再試一次。");
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          blocks: ArticleBlock[];
+          keywords: KeywordSuggestion[];
+        };
+
+        setBlocks(payload.blocks);
+        setKeywords(payload.keywords);
+        setStatus("請先勾選要使用的關鍵字，再開始翻譯。");
+      } catch {
+        setError("目前無法連線到分析服務，請稍後再試一次。");
+        setStatus("分析中斷，請重新再試一次。");
+      }
+    });
+  };
+
+  const handleTranslate = () => {
+    if (blocks.length === 0) {
+      setError("請先分析文章，讓我先整理關鍵字建議。");
+      return;
+    }
+
+    setError(null);
+    setStatus("正在依照已選關鍵字翻成日文...");
+
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/translate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ blocks, keywords })
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json()) as { error?: string };
+          setError(payload.error ?? "翻譯失敗。");
+          setStatus("請調整關鍵字後再試一次。");
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          blocks: ArticleBlock[];
+          keywords: KeywordSuggestion[];
+          titleOptions: TitleOption[];
+        };
+
+        setBlocks(payload.blocks);
+        setKeywords(payload.keywords);
+        setTitleOptions(payload.titleOptions);
+        setSelectedTitle(payload.titleOptions[0]?.text ?? "");
+        setStatus("翻譯完成，請檢查日文結果、標題和關鍵字使用情況。");
+      } catch {
+        setError("翻譯連線中斷了。文章較長時可能需要較久，請再試一次。");
+        setStatus("翻譯中斷，請重新再試一次。");
+      }
+    });
+  };
+
+  const handleDownload = async () => {
+    if (!hasTranslation) {
+      return;
+    }
+
+    setError(null);
+    setStatus("正在準備匯出檔案...");
+
+    try {
+      const response = await fetch("/api/export", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ blocks, titleOverride: selectedTitle })
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setError(payload.error ?? "匯出失敗。");
+        setStatus("目前無法建立匯出檔案。");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "translated-article.docx";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setStatus("翻譯後的 docx 已準備完成。");
+    } catch {
+      setError("下載連線中斷了，請再試一次。");
+      setStatus("目前無法建立匯出檔案。");
+    }
+  };
+
+  return (
+    <div className="workspace-flow">
+      <UploadForm
+        error={error}
+        file={file}
+        hasAnalysis={hasAnalysis}
+        includeTrendSuggestions={includeTrendSuggestions}
+        isPending={isPending}
+        onAnalyze={handleAnalyze}
+        onFileChange={(nextFile) => {
+          setFile(nextFile);
+          setError(null);
+          setStatus(nextFile ? "可以先分析文章了。" : "可以開始上傳檔案");
+          resetResults();
+        }}
+        onToggleTrendSuggestions={setIncludeTrendSuggestions}
+        stage={stage}
+        status={status}
+      />
+      {hasAnalysis ? (
+        <NotesPane
+          blocks={blocks}
+          isPending={isPending}
+          keywords={keywords}
+          onAddManualKeyword={(phrase) => {
+            setKeywords((current) => upsertManualKeyword(current, phrase));
+            setTitleOptions([]);
+          }}
+          onToggleKeyword={(phrase, nextSelected) => {
+            setKeywords((current) =>
+              current.map((keyword) =>
+                keyword.phrase === phrase
+                  ? { ...keyword, selected: nextSelected }
+                  : keyword
+              )
+            );
+            setTitleOptions([]);
+          }}
+          onTranslate={handleTranslate}
+        />
+      ) : null}
+      {hasTranslation ? (
+        <ResultPane
+          blocks={blocks}
+          onDownload={handleDownload}
+          onTitleChange={setSelectedTitle}
+          keywords={keywords}
+          titleOptions={titleOptions}
+        />
+      ) : null}
+    </div>
+  );
+}

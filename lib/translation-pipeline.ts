@@ -141,9 +141,49 @@ function normalizeKeyword(keyword: KeywordSuggestion): KeywordSuggestion {
   return {
     phrase: keyword.phrase.trim(),
     source: keyword.source,
-    reason: keyword.reason.trim(),
+    reason: normalizeKeywordReason(keyword.reason, keyword.source),
     selected: keyword.selected
   };
+}
+
+function looksMostlyEnglish(text: string) {
+  const asciiLetters = (text.match(/[A-Za-z]/g) ?? []).length;
+  const japaneseChars = (text.match(/[\u3040-\u30ff\u3400-\u9fff]/g) ?? []).length;
+  return asciiLetters > 12 && asciiLetters > japaneseChars;
+}
+
+function normalizeKeywordReason(
+  reason: string,
+  source: KeywordSuggestion["source"]
+) {
+  const trimmed = reason.trim();
+
+  if (!trimmed) {
+    return source === "google_trends"
+      ? "最近の日本語旅行検索でも見かけやすく、今回の記事にも自然になじむ語です。"
+      : "記事内容との結びつきが強く、日本語本文にも無理なく入れやすい語です。";
+  }
+
+  const normalized = trimmed.toLowerCase();
+
+  if (
+    normalized.includes("broad, high-volume term") ||
+    normalized.includes("highly relevant") ||
+    normalized.includes("targets food enthusiasts") ||
+    normalized.includes("emphasizes the food aspect") ||
+    normalized.includes("recent japan travel search phrase") ||
+    normalized.includes("good general keyword") ||
+    normalized.includes("must-eat list") ||
+    normalized.includes("article is a") ||
+    normalized.includes("can lead them to this specific one") ||
+    looksMostlyEnglish(trimmed)
+  ) {
+    return source === "google_trends"
+      ? "最近の日本語旅行検索でも拾われやすく、今回の記事テーマにも自然につなげやすい語です。"
+      : "記事の主題と相性がよく、見出しや本文にも自然に組み込みやすい語です。";
+  }
+
+  return trimmed;
 }
 
 function dedupeKeywords(keywords: KeywordSuggestion[]) {
@@ -321,7 +361,7 @@ export async function analyzeArticleBlocks(
       trendCandidates
     }),
     instructions:
-      "Return valid JSON only. Suggest only article-relevant Japanese keyword phrases and preselect the strongest natural options."
+      "Return valid JSON only. Suggest only article-relevant Japanese keyword phrases, preselect the strongest natural options, and write every reason in natural Japanese."
   })) as { keywords: KeywordSuggestion[] };
 
   const dedupedKeywords = dedupeKeywords(keywordBundle.keywords);

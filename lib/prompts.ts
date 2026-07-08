@@ -140,12 +140,13 @@ export function buildKeywordSuggestionPrompt(input: {
   trendCandidates: string[];
 }) {
   return [
-    "Task: propose Japanese SEO keyword suggestions for a Taiwan travel article.",
-    "You are helping a non-Japanese-speaking editor choose practical keywords.",
-    "Combine article relevance with recent Japan travel search interest.",
-    "Trend keywords are only a support layer. Article fit comes first.",
-    "Keep only keywords that truly match the article. Avoid unrelated hype terms.",
-    "Prefer words that could naturally appear in titles, subheadings, captions, or short descriptive passages.",
+    "Task: 台湾旅行記事向けの日本語SEOキーワード候補を提案する。",
+    "想定読者は日本語がわからない編集者なので、判断しやすい実用的な候補だけを出す。",
+    "記事との関連性を最優先にしつつ、最近の日本の旅行検索語も補助的に反映する。",
+    "Google Trends の語は補助材料であり、記事内容に合わない語は採用しない。",
+    "タイトル、小見出し、本文導入、短い説明文に自然に入る語だけを残す。",
+    "keyword.reason は必ず自然な日本語で1文だけ書く。英語、中国語、箇条書きは禁止。",
+    "keyword.phrase も必ず日本語の検索語にする。",
     `Article summary: ${input.sourceSummary}`,
     `Article hints: ${input.articleHints.join(", ") || "none"}`,
     `Recent Japan travel trend candidates: ${input.trendCandidates.join(", ") || "none"}`,

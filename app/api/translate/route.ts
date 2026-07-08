@@ -3,7 +3,7 @@ import { formatServiceError } from "../../../lib/api-errors";
 import { translateArticleBlocks } from "../../../lib/translation-pipeline";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const requestSchema = z.object({
   blocks: z.array(

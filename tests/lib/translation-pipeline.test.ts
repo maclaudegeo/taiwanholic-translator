@@ -210,11 +210,7 @@ describe("translateArticleBlocks", () => {
             id: "paragraph-1",
             text: "一段目",
             notes: []
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        blocks: [
+          },
           {
             id: "paragraph-2",
             text: "二段目",
@@ -275,10 +271,9 @@ describe("translateArticleBlocks", () => {
       },
     );
 
-    expect(callModel).toHaveBeenCalledTimes(3);
+    expect(callModel).toHaveBeenCalledTimes(2);
     expect(callModel.mock.calls[0]?.[0]?.kind).toBe("bulk_translation");
-    expect(callModel.mock.calls[1]?.[0]?.kind).toBe("bulk_translation");
-    expect(callModel.mock.calls[2]?.[0]?.kind).toBe("titles");
+    expect(callModel.mock.calls[1]?.[0]?.kind).toBe("titles");
     expect(result.blocks.map((block) => block.polishedText)).toEqual(["一段目", "二段目"]);
   });
 

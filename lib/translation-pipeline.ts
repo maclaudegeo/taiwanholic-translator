@@ -34,9 +34,9 @@ type PipelineOptions = {
   keywords?: KeywordSuggestion[];
 };
 
-const MAX_BULK_TRANSLATION_CHARS = 3200;
-const MAX_BULK_TRANSLATION_BLOCKS = 8;
-const BULK_TRANSLATION_CONCURRENCY = 3;
+const MAX_BULK_TRANSLATION_CHARS = 6000;
+const MAX_BULK_TRANSLATION_BLOCKS = 12;
+const BULK_TRANSLATION_CONCURRENCY = 4;
 
 const noteListSchema = z
   .union([z.array(z.string()), z.string(), z.null(), z.undefined()])

@@ -46,7 +46,7 @@ function shouldRetryGemini(errorText: string, status: number) {
 }
 
 function getConfiguredProviders(): ProviderName[] {
-  const rawOrder = process.env.LLM_PROVIDER_ORDER?.trim() || "gemini,openai";
+  const rawOrder = process.env.LLM_PROVIDER_ORDER?.trim() || "openai,gemini";
   const requested = rawOrder
     .split(",")
     .map((item) => item.trim().toLowerCase())

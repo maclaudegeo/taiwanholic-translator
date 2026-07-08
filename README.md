@@ -6,8 +6,8 @@ A docx-based translation workspace for Taiwan travel articles. The app keeps the
 
 1. Install dependencies with `npm install`
 2. Copy `.env.example` to `.env.local`
-3. Add your `GEMINI_API_KEY` if you want the default low-cost path
-4. Optional: add `OPENAI_API_KEY` as a fallback provider
+3. Add your `OPENAI_API_KEY` for the default stable path
+4. Optional: add `GEMINI_API_KEY` as a fallback provider
 5. Run `npm run dev`
 
 ## Deploy
@@ -16,11 +16,11 @@ Recommended: deploy to `Vercel`.
 
 1. Create a Vercel project from this folder or from a GitHub repository.
 2. Add these Environment Variables in Vercel:
-   `GEMINI_API_KEY`
-   `GEMINI_MODEL` with value `gemini-2.5-flash` if you want to keep the current default
    `OPENAI_API_KEY`
-   `OPENAI_MODEL` with value `gpt-5.5` if you want OpenAI fallback
-   `LLM_PROVIDER_ORDER` with value `gemini,openai`
+   `OPENAI_MODEL` with value `gpt-5.5`
+   `LLM_PROVIDER_ORDER` with value `openai`
+   `GEMINI_API_KEY` if you still want a backup provider
+   `GEMINI_MODEL` with value `gemini-2.5-flash` if you want that backup provider
 3. Deploy.
 
 After deployment, the app runs on Vercel's servers, so teammates can keep using it even when your computer is asleep.

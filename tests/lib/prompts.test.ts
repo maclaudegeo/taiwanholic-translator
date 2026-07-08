@@ -19,6 +19,7 @@ describe("buildTranslationPrompt", () => {
     expect(prompt).toContain("many blocks should use none");
     expect(prompt).toContain("not sentence-by-sentence translation");
     expect(prompt).toContain("Write with editorial judgment");
+    expect(prompt).toContain("Help the reader decide");
     expect(prompt).toContain("Use a Japanese reader lens");
   });
 });
@@ -62,5 +63,6 @@ describe("buildBulkTranslationPrompt", () => {
     expect(prompt).toContain("reader able to picture");
     expect(prompt).toContain("Do not carry over Chinese emotional buildup line by line");
     expect(prompt).toContain("Do not let every recommendation land at the same intensity");
+    expect(prompt).toContain("help the reader choose by implying first picks");
   });
 });

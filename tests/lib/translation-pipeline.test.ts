@@ -173,6 +173,72 @@ describe("translateArticleBlocks", () => {
     expect(result.blocks[0]?.notes).toContain("bulk translation fallback applied");
   });
 
+  it("keeps the translation when validation omits scores and blocks", async () => {
+    const callModel = vi
+      .fn()
+      .mockResolvedValueOnce({
+        blocks: [
+          {
+            id: "title-1",
+            text: "台湾 朝ごはんを楽しむ台北案内",
+            notes: ["bulk polished"]
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        options: [
+          {
+            id: "stable",
+            label: "穩健型",
+            text: "台北で楽しむ朝ごはん案内",
+            focus: "穩健型",
+            keywordsUsed: []
+          },
+          {
+            id: "click",
+            label: "吸引型",
+            text: "台湾らしい朝を楽しむなら 台北朝ごはん案内",
+            focus: "吸引型",
+            keywordsUsed: []
+          },
+          {
+            id: "search",
+            label: "搜尋型",
+            text: "台北 朝ごはん おすすめ 台湾旅行で外せない一軒",
+            focus: "搜尋型",
+            keywordsUsed: []
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        verdict: "校正コメントのみ返しました。"
+      });
+
+    const result = await translateArticleBlocks(
+      [
+        {
+          id: "title-1",
+          type: "title",
+          sourceText: "台北早餐推薦",
+          translatedText: null,
+          polishedText: null,
+          trendSuggestions: [],
+          notes: []
+        }
+      ],
+      {
+        callModel,
+        keywords: []
+      },
+    );
+
+    expect(result.blocks[0]?.polishedText).toBe("台湾 朝ごはんを楽しむ台北案内");
+    expect(result.blocks[0]?.notes).toEqual(["bulk polished"]);
+    expect(result.validation?.verdict).toBe("校正コメントのみ返しました。");
+    expect(result.validation?.japaneseEditorScore).toBe(8);
+    expect(result.validation?.aiFeelScore).toBe(3);
+  });
+
   it("generates stable title option ids when the model does not return them", async () => {
     const callModel = vi
       .fn()

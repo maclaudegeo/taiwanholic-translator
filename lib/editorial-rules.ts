@@ -8,6 +8,10 @@ export const JAPANESE_USAGE_RULES = `Reference concrete Howto Taiwan-style Japan
 
 export const TRANSCREATION_RULES = `This is not sentence-by-sentence translation. Treat the Chinese source as reporting material, then rewrite it into Japanese that matches Japanese travel-editor reading habits. Preserve facts, observations, and recommendations, but do not preserve Chinese rhetorical density, emotional stacking, or paragraph rhythm by default. If the Chinese original is highly expressive, compress and rebalance it into more natural Japanese pacing. Favor transcreation over literal fidelity whenever a direct carryover would sound like translated overseas media.`;
 
+export const EDITORIAL_JUDGMENT_RULES = `Write with editorial judgment, not universal praise. Do not make every shop, dish, or stop sound equally wonderful. When the source supports it, quietly signal distinctions such as who would like it, when it works best, what kind of appetite it suits, whether flavors may divide opinion, or which item feels especially worth prioritizing. Let some entries sound like "good for this mood" rather than "perfect for everyone."`;
+
+export const JAPANESE_READER_LENS = `Use a Japanese reader lens whenever it naturally helps. You may briefly compare with what Japanese travelers are likely familiar with, note when a taste or texture differs from Japan, explain what first-time visitors might notice, or suggest what kind of souvenir or food choice feels easy for Japanese readers to try first. Do this only when grounded in the source, and keep it woven into the prose rather than sounding like a separate explainer.`;
+
 export const HOWTO_TAIWAN_STYLE_GUIDE = `Howto Taiwan-style Japanese title habits and body habits:
 - Titles are concrete first, then inviting. They usually combine subject, practical benefit, and an emotional hook without sounding like clickbait.
 - Titles often front-load the place, item, or travel situation, then add the payoff Japanese readers care about, such as ease, atmosphere, taste, souvenir suitability, or model-course usefulness.
@@ -20,6 +24,8 @@ export const HOWTO_TAIWAN_STYLE_GUIDE = `Howto Taiwan-style Japanese title habit
 - Body copy should feel like a Japanese editor writing for Japanese readers from a Taiwan vantage point, not like a translated brochure.`;
 
 export const ANTI_AI_RULES = `Do not write like product copy, corporate PR, or a translated catalog. Do not default to abstract praise such as "魅力", "上品", "自然な甘み", "素材を大切にした", "在地", or "文青" unless the source gives a concrete reason and you can ground it. Do not preserve Chinese content-marketing vocabulary by habit. Replace vague Chinese marketing ideas with natural Japanese travel-editor wording rooted in a real use case or scene. Do not make every paragraph follow the same neat structure. Do not make every sentence equally complete and polished. Do not over-explain. Do not force SEO phrases into running prose. Use at most one selected keyword phrase per block, and many blocks should use none. Reserve most keyword insertion for titles, intro passages, headings, captions, and other clearly fitting spots. If a keyword would make the sentence sound searchable rather than readable, leave it out.`;
+
+export const NATURAL_JAPANESE_RULES = `Prefer natural Japanese wording over flashy hybrid phrasing. Avoid sudden English insertions, pseudo-luxury expressions, or decorative katakana unless they are normal for Japanese travel writing in that exact context. If a phrase sounds showy rather than lived-in, rewrite it into simpler Japanese.`;
 
 export const FIDELITY_RULES = `Preserve the original meaning, facts, place names, names, and key recommendations. You may change sentence order, paragraph rhythm, and the intensity of expression to fit natural Japanese travel-media writing. Do not invent new attractions, claims, rankings, or reasons that are not in the source.`;
 

@@ -5,7 +5,7 @@ import {
 } from "../../lib/prompts";
 
 describe("buildTranslationPrompt", () => {
-  it("includes the fidelity rule and Taiwan-friend editorial tone", () => {
+  it("includes concrete Howto Taiwan-style writing rules and anti-ai constraints", () => {
     const prompt = buildTranslationPrompt({
       blockType: "title",
       sourceText: "台北早餐推薦",
@@ -13,8 +13,10 @@ describe("buildTranslationPrompt", () => {
     });
 
     expect(prompt).toContain("Preserve the original meaning");
-    expect(prompt).toContain("trusted Taiwan-savvy friend");
-    expect(prompt).toContain("Howto Taiwan articles");
+    expect(prompt).toContain("Howto Taiwan");
+    expect(prompt).toContain("Do not write like product copy");
+    expect(prompt).toContain("具体的な体験");
+    expect(prompt).toContain("many blocks should use none");
   });
 });
 
@@ -28,6 +30,7 @@ describe("buildTitleOptionsPrompt", () => {
 
     expect(prompt).toContain("Return exactly three options");
     expect(prompt).toContain("stable, click, search");
+    expect(prompt).toContain("Howto Taiwan-style Japanese title habits");
   });
 });
 
@@ -51,6 +54,8 @@ describe("buildBulkTranslationPrompt", () => {
 
     expect(prompt).toContain("Preserve block ids");
     expect(prompt).toContain("Use selected keywords only where they genuinely fit");
-    expect(prompt).toContain("Howto Taiwan articles");
+    expect(prompt).toContain("Howto Taiwan");
+    expect(prompt).toContain("Do not write like product copy");
+    expect(prompt).toContain("reader able to picture");
   });
 });

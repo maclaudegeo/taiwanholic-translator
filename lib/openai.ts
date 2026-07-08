@@ -9,6 +9,8 @@ type StructuredInput = {
 };
 
 let openAiClient: OpenAI | null = null;
+const GEMINI_MAX_RETRIES = 3;
+const GEMINI_RETRY_BASE_MS = 1500;
 
 function extractJsonPayload(rawText: string) {
   const fencedMatch = rawText.match(/```json\s*([\s\S]+?)```/i);
@@ -24,6 +26,23 @@ function clipText(value: string, limit = 500) {
   return normalized.length > limit
     ? `${normalized.slice(0, limit)}...`
     : normalized;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryGemini(errorText: string, status: number) {
+  const normalized = errorText.toLowerCase();
+
+  return (
+    status === 503 ||
+    status === 429 ||
+    normalized.includes("unavailable") ||
+    normalized.includes("high demand") ||
+    normalized.includes("resource_exhausted") ||
+    normalized.includes("try again later")
+  );
 }
 
 function getConfiguredProviders(): ProviderName[] {
@@ -110,45 +129,70 @@ async function requestWithGemini(input: StructuredInput) {
   }
 
   const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${input.instructions}\n\n${input.prompt}`
-              }
-            ]
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES; attempt += 1) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `${input.instructions}\n\n${input.prompt}`
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.4
           }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.4
-        }
-      })
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const retryable = shouldRetryGemini(errorText, response.status);
+      lastError = new Error(
+        `Gemini ${response.status} (attempt ${attempt}/${GEMINI_MAX_RETRIES}): ${errorText}`
+      );
+
+      if (retryable && attempt < GEMINI_MAX_RETRIES) {
+        await sleep(GEMINI_RETRY_BASE_MS * attempt);
+        continue;
+      }
+
+      throw lastError;
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini ${response.status}: ${errorText}`);
+    const payload = (await response.json()) as unknown;
+    const parts = getGeminiTextParts(payload);
+
+    if (parts.length === 0) {
+      lastError = new Error(
+        `Gemini returned an empty response on attempt ${attempt}/${GEMINI_MAX_RETRIES}. Payload: ${clipText(JSON.stringify(payload))}`
+      );
+
+      if (attempt < GEMINI_MAX_RETRIES) {
+        await sleep(GEMINI_RETRY_BASE_MS * attempt);
+        continue;
+      }
+
+      throw lastError;
+    }
+
+    return parts.join("\n").trim();
   }
 
-  const payload = (await response.json()) as unknown;
-  const parts = getGeminiTextParts(payload);
-
-  if (parts.length === 0) {
-    throw new Error(`Gemini returned an empty response. Payload: ${clipText(JSON.stringify(payload))}`);
-  }
-
-  return parts.join("\n").trim();
+  throw lastError ?? new Error("Gemini request failed.");
 }
 
 async function generateJsonText(provider: ProviderName, input: StructuredInput) {

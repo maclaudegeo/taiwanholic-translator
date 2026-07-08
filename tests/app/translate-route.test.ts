@@ -1,6 +1,8 @@
 import { POST as analyzePost } from "../../app/api/analyze/route";
 import { POST as translatePost } from "../../app/api/translate/route";
 import * as pipeline from "../../lib/translation-pipeline";
+import { requestStructuredData } from "../../lib/openai";
+import { z } from "zod";
 
 describe("POST /api/analyze", () => {
   it("rejects requests without a docx file", async () => {
@@ -24,6 +26,58 @@ describe("POST /api/analyze", () => {
     const response = await analyzePost(request);
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("requestStructuredData Gemini retry", () => {
+  it("retries Gemini on temporary 503 errors", async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 503,
+              message: "This model is currently experiencing high demand.",
+              status: "UNAVAILABLE"
+            }
+          }),
+          { status: 503 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: "{\"ok\":true}" }]
+                }
+              }
+            ]
+          }),
+          { status: 200 }
+        )
+      );
+
+    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key");
+    vi.stubEnv("LLM_PROVIDER_ORDER", "gemini");
+    global.fetch = fetchMock as typeof fetch;
+
+    const result = await requestStructuredData(
+      z.object({ ok: z.boolean() }),
+      {
+        instructions: "test",
+        prompt: "test"
+      }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ ok: true });
+
+    global.fetch = originalFetch;
+    vi.unstubAllEnvs();
   });
 });
 

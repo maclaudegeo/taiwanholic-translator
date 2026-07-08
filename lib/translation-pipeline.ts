@@ -12,6 +12,7 @@ import {
   buildTitleOptionsPrompt
 } from "./prompts";
 import { fetchTrendCandidates } from "./trends";
+import { chunkArticleBlocks } from "./translation-chunks";
 import { requestStructuredData } from "./openai";
 
 type TranslationCallResult =
@@ -33,10 +34,6 @@ type PipelineOptions = {
   includeTrendSuggestions?: boolean;
   keywords?: KeywordSuggestion[];
 };
-
-const MAX_BULK_TRANSLATION_CHARS = 6000;
-const MAX_BULK_TRANSLATION_BLOCKS = 12;
-const BULK_TRANSLATION_CONCURRENCY = 4;
 
 const noteListSchema = z
   .union([z.array(z.string()), z.string(), z.null(), z.undefined()])
@@ -233,59 +230,6 @@ function normalizeTitleOptions(options: TitleOption[]) {
   }));
 }
 
-function chunkArticleBlocks(blocks: ArticleBlock[]) {
-  const chunks: ArticleBlock[][] = [];
-  let currentChunk: ArticleBlock[] = [];
-  let currentChars = 0;
-
-  for (const block of blocks) {
-    const blockChars = block.sourceText.length;
-    const wouldOverflowChars =
-      currentChunk.length > 0 &&
-      currentChars + blockChars > MAX_BULK_TRANSLATION_CHARS;
-    const wouldOverflowBlocks =
-      currentChunk.length >= MAX_BULK_TRANSLATION_BLOCKS;
-
-    if (wouldOverflowChars || wouldOverflowBlocks) {
-      chunks.push(currentChunk);
-      currentChunk = [];
-      currentChars = 0;
-    }
-
-    currentChunk.push(block);
-    currentChars += blockChars;
-  }
-
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk);
-  }
-
-  return chunks;
-}
-
-async function mapWithConcurrency<TInput, TOutput>(
-  items: TInput[],
-  concurrency: number,
-  mapper: (item: TInput, index: number) => Promise<TOutput>
-) {
-  const results: TOutput[] = new Array(items.length);
-  let nextIndex = 0;
-
-  async function worker() {
-    while (nextIndex < items.length) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      results[currentIndex] = await mapper(items[currentIndex] as TInput, currentIndex);
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, () => worker())
-  );
-
-  return results;
-}
-
 export async function analyzeArticleBlocks(
   blocks: ArticleBlock[],
   options: PipelineOptions
@@ -338,35 +282,27 @@ export async function translateArticleBlocks(
   const selectedKeywords = chosenKeywords
     .filter((keyword) => keyword.selected)
     .map((keyword) => keyword.phrase);
+  const translatedBundle = (await callModel({
+    kind: "bulk_translation",
+    prompt: buildBulkTranslationPrompt({
+      blocks: blocks.map((block) => ({
+        id: block.id,
+        type: block.type,
+        sourceText: block.sourceText
+      })),
+      selectedKeywords
+    }),
+    instructions:
+      "Return valid JSON only. Translate and polish the whole article chunk in one pass. Preserve every block id and keep the Japanese natural, faithful, and publication-ready."
+  })) as { blocks: { id: string; text: string; notes: string[] }[] };
+
   const translatedMap = new Map<string, { text: string; notes: string[] }>();
-  const blockChunks = chunkArticleBlocks(blocks);
 
-  const translatedBundles = (await mapWithConcurrency(
-    blockChunks,
-    BULK_TRANSLATION_CONCURRENCY,
-    async (chunk) =>
-      (await callModel({
-        kind: "bulk_translation",
-        prompt: buildBulkTranslationPrompt({
-          blocks: chunk.map((block) => ({
-            id: block.id,
-            type: block.type,
-            sourceText: block.sourceText
-          })),
-          selectedKeywords
-        }),
-        instructions:
-          "Return valid JSON only. Translate and polish the whole article chunk in one pass. Preserve every block id and keep the Japanese natural, faithful, and publication-ready."
-      })) as { blocks: { id: string; text: string; notes: string[] }[] }
-  )) as { blocks: { id: string; text: string; notes: string[] }[] }[];
-
-  for (const translatedBundle of translatedBundles) {
-    for (const block of translatedBundle.blocks) {
-      translatedMap.set(block.id, {
-        text: normalizeModelText(block.text),
-        notes: normalizeModelNotes(block.notes)
-      });
-    }
+  for (const block of translatedBundle.blocks) {
+    translatedMap.set(block.id, {
+      text: normalizeModelText(block.text),
+      notes: normalizeModelNotes(block.notes)
+    });
   }
 
   const results: ArticleBlock[] = blocks.map((block) => {
@@ -395,6 +331,8 @@ export async function translateArticleBlocks(
     validation: null
   };
 }
+
+export { chunkArticleBlocks };
 
 export async function generateTitleOptions(
   blocks: ArticleBlock[],

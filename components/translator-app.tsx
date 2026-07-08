@@ -6,6 +6,7 @@ import type {
   KeywordSuggestion,
   TitleOption
 } from "../lib/article-blocks";
+import { chunkArticleBlocks } from "../lib/translation-chunks";
 import { NotesPane } from "./notes-pane";
 import { ResultPane } from "./result-pane";
 import { UploadForm } from "./upload-form";
@@ -158,37 +159,48 @@ export function TranslatorApp() {
 
     startTransition(async () => {
       try {
-        const response = await fetch("/api/translate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ blocks, keywords })
-        });
+        const chunks = chunkArticleBlocks(blocks);
+        const translatedBlocks: ArticleBlock[] = [];
+        let latestKeywords = keywords;
 
-        if (!response.ok) {
-          const payload = (await response.json()) as { error?: string };
-          setError(payload.error ?? "翻譯失敗。");
-          setStatus("請調整關鍵字後再試一次。");
-          return;
+        for (let index = 0; index < chunks.length; index += 1) {
+          setStatus(`正在翻譯第 ${index + 1} / ${chunks.length} 段...`);
+
+          const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ blocks: chunks[index], keywords: latestKeywords })
+          });
+
+          if (!response.ok) {
+            const payload = (await response.json()) as { error?: string };
+            setError(payload.error ?? "翻譯失敗。");
+            setStatus("請調整關鍵字後再試一次。");
+            return;
+          }
+
+          const payload = (await response.json()) as {
+            blocks: ArticleBlock[];
+            keywords: KeywordSuggestion[];
+            titleOptions: TitleOption[];
+          };
+
+          translatedBlocks.push(...payload.blocks);
+          latestKeywords = payload.keywords;
         }
 
-        const payload = (await response.json()) as {
-          blocks: ArticleBlock[];
-          keywords: KeywordSuggestion[];
-          titleOptions: TitleOption[];
-        };
-
-        setBlocks(payload.blocks);
-        setKeywords(payload.keywords);
+        setBlocks(translatedBlocks);
+        setKeywords(latestKeywords);
         setTitleOptions([]);
         setSelectedTitle(
-          payload.blocks.find((block) => block.type === "title")?.polishedText ??
-            payload.blocks[0]?.polishedText ??
+          translatedBlocks.find((block) => block.type === "title")?.polishedText ??
+            translatedBlocks[0]?.polishedText ??
             ""
         );
         setStatus("翻譯完成，正在整理標題...");
-        void loadTitleOptions(payload.blocks, payload.keywords);
+        void loadTitleOptions(translatedBlocks, latestKeywords);
       } catch {
         setError("翻譯連線中斷了。文章較長時可能需要較久，請再試一次。");
         setStatus("翻譯中斷，請重新再試一次。");

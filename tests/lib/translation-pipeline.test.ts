@@ -3,6 +3,7 @@ import {
   generateTitleOptions,
   translateArticleBlocks
 } from "../../lib/translation-pipeline";
+import { chunkArticleBlocks } from "../../lib/translation-chunks";
 
 describe("translateArticleBlocks", () => {
   it("runs only bulk translation during article translation", async () => {
@@ -142,7 +143,7 @@ describe("translateArticleBlocks", () => {
     ]);
   });
 
-  it("splits very long articles into a few bulk translation batches", async () => {
+  it("translates the provided chunk in a single bulk call", async () => {
     const callModel = vi
       .fn()
       .mockResolvedValueOnce({
@@ -192,82 +193,6 @@ describe("translateArticleBlocks", () => {
     expect(result.blocks.map((block) => block.polishedText)).toEqual(["一段目", "二段目"]);
   });
 
-  it("translates long-article chunks with limited parallelism to reduce timeout risk", async () => {
-    let activeBulkCalls = 0;
-    let maxConcurrentBulkCalls = 0;
-
-    const callModel = vi.fn(async (input: { kind: string; prompt: string }) => {
-      if (input.kind === "bulk_translation") {
-        activeBulkCalls += 1;
-        maxConcurrentBulkCalls = Math.max(
-          maxConcurrentBulkCalls,
-          activeBulkCalls
-        );
-
-        const ids = Array.from(input.prompt.matchAll(/"id":"([^"]+)"/g)).map(
-          (match) => match[1] ?? ""
-        );
-
-        await new Promise((resolve) => setTimeout(resolve, 20));
-
-        activeBulkCalls -= 1;
-
-        return {
-          blocks: ids.map((id) => ({
-            id,
-            text: `${id}-ja`,
-            notes: []
-          }))
-        };
-      }
-
-      throw new Error(`Unexpected kind: ${input.kind}`);
-    });
-
-    const result = await translateArticleBlocks(
-      [
-        {
-          id: "paragraph-1",
-          type: "paragraph",
-          sourceText: "甲".repeat(2600),
-          translatedText: null,
-          polishedText: null,
-          trendSuggestions: [],
-          notes: []
-        },
-        {
-          id: "paragraph-2",
-          type: "paragraph",
-          sourceText: "乙".repeat(2600),
-          translatedText: null,
-          polishedText: null,
-          trendSuggestions: [],
-          notes: []
-        },
-        {
-          id: "paragraph-3",
-          type: "paragraph",
-          sourceText: "丙".repeat(2600),
-          translatedText: null,
-          polishedText: null,
-          trendSuggestions: [],
-          notes: []
-        }
-      ],
-      {
-        callModel,
-        keywords: []
-      }
-    );
-
-    expect(maxConcurrentBulkCalls).toBeGreaterThan(1);
-    expect(result.blocks.map((block) => block.polishedText)).toEqual([
-      "paragraph-1-ja",
-      "paragraph-2-ja",
-      "paragraph-3-ja"
-    ]);
-  });
-
   it("normalizes note strings from the model into arrays", async () => {
     const callModel = vi
       .fn()
@@ -300,6 +225,35 @@ describe("translateArticleBlocks", () => {
     );
 
     expect(result.blocks[0]?.notes).toEqual(["rewritten for tone"]);
+  });
+});
+
+describe("chunkArticleBlocks", () => {
+  it("splits long articles into multiple chunks for client-side translation", () => {
+    const chunks = chunkArticleBlocks([
+      {
+        id: "paragraph-1",
+        type: "paragraph",
+        sourceText: "甲".repeat(4000),
+        translatedText: null,
+        polishedText: null,
+        trendSuggestions: [],
+        notes: []
+      },
+      {
+        id: "paragraph-2",
+        type: "paragraph",
+        sourceText: "乙".repeat(4000),
+        translatedText: null,
+        polishedText: null,
+        trendSuggestions: [],
+        notes: []
+      }
+    ]);
+
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0]?.map((block) => block.id)).toEqual(["paragraph-1"]);
+    expect(chunks[1]?.map((block) => block.id)).toEqual(["paragraph-2"]);
   });
 });
 

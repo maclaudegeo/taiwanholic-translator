@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type {
   ArticleBlock,
   KeywordSuggestion,
@@ -53,17 +53,18 @@ export function TranslatorApp() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("可以開始上傳檔案");
   const [includeTrendSuggestions, setIncludeTrendSuggestions] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [pendingStage, setPendingStage] = useState<"analyzing" | "translating" | "downloading" | null>(null);
 
   const hasAnalysis = blocks.length > 0 && keywords.length > 0;
   const hasTranslation = blocks.some((block) => Boolean(block.polishedText));
+  const isPending = pendingStage !== null;
   const stage = hasTranslation
     ? "translated"
-    : isPending && hasAnalysis
+    : pendingStage === "translating" && hasAnalysis
       ? "translating"
       : hasAnalysis
         ? "keywords"
-        : isPending
+        : pendingStage === "analyzing"
           ? "analyzing"
           : file
             ? "ready"
@@ -74,6 +75,14 @@ export function TranslatorApp() {
     setKeywords([]);
     setTitleOptions([]);
     setSelectedTitle("");
+  };
+
+  const handleFileChange = (nextFile: File | null) => {
+    setFile(nextFile);
+    setError(null);
+    resetResults();
+    setPendingStage(null);
+    setStatus(nextFile ? "已選擇檔案，請按下「分析文章」。" : "可以開始上傳檔案");
   };
 
   const sleep = (ms: number) =>
@@ -146,7 +155,7 @@ export function TranslatorApp() {
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!file) {
       setError("請先選擇一個 .docx 檔案。");
       return;
@@ -155,41 +164,42 @@ export function TranslatorApp() {
     setError(null);
     setStatus("正在讀取文章並整理關鍵字建議...");
     resetResults();
+    setPendingStage("analyzing");
 
-    startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set("file", file);
-        formData.set("includeTrendSuggestions", String(includeTrendSuggestions));
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      formData.set("includeTrendSuggestions", String(includeTrendSuggestions));
 
-        const response = await fetch("/api/analyze", {
-          method: "POST",
-          body: formData
-        });
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData
+      });
 
-        if (!response.ok) {
-          const payload = (await response.json()) as { error?: string };
-          setError(payload.error ?? "文章分析失敗。");
-          setStatus("請重新上傳檔案後再試一次。");
-          return;
-        }
-
-        const payload = (await response.json()) as {
-          blocks: ArticleBlock[];
-          keywords: KeywordSuggestion[];
-        };
-
-        setBlocks(payload.blocks);
-        setKeywords(payload.keywords);
-        setStatus("請先勾選要使用的關鍵字，再開始翻譯。");
-      } catch {
-        setError("目前無法連線到分析服務，請稍後再試一次。");
-        setStatus("分析中斷，請重新再試一次。");
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setError(payload.error ?? "文章分析失敗。");
+        setStatus("請重新上傳檔案後再試一次。");
+        return;
       }
-    });
+
+      const payload = (await response.json()) as {
+        blocks: ArticleBlock[];
+        keywords: KeywordSuggestion[];
+      };
+
+      setBlocks(payload.blocks);
+      setKeywords(payload.keywords);
+      setStatus("請先勾選要使用的關鍵字，再開始翻譯。");
+    } catch {
+      setError("目前無法連線到分析服務，請稍後再試一次。");
+      setStatus("分析中斷，請重新再試一次。");
+    } finally {
+      setPendingStage(null);
+    }
   };
 
-  const handleTranslate = () => {
+  const handleTranslate = async () => {
     if (blocks.length === 0) {
       setError("請先分析文章，讓我先整理關鍵字建議。");
       return;
@@ -197,43 +207,44 @@ export function TranslatorApp() {
 
     setError(null);
     setStatus("正在依照已選關鍵字翻成日文...");
+    setPendingStage("translating");
 
-    startTransition(async () => {
-      try {
-        const chunks = chunkArticleBlocks(blocks);
-        const translatedBlocks: ArticleBlock[] = [];
-        let latestKeywords = keywords;
+    try {
+      const chunks = chunkArticleBlocks(blocks);
+      const translatedBlocks: ArticleBlock[] = [];
+      let latestKeywords = keywords;
 
-        for (let index = 0; index < chunks.length; index += 1) {
-          setStatus(`正在翻譯第 ${index + 1} / ${chunks.length} 段...`);
+      for (let index = 0; index < chunks.length; index += 1) {
+        setStatus(`正在翻譯第 ${index + 1} / ${chunks.length} 段...`);
 
-          const payload = await fetchChunkWithRetry(chunks[index] ?? [], latestKeywords);
+        const payload = await fetchChunkWithRetry(chunks[index] ?? [], latestKeywords);
 
-          translatedBlocks.push(...payload.blocks);
-          latestKeywords = payload.keywords;
-        }
-
-        const mergedBlocks = mergeTranslatedBlocks(translatedBlocks);
-
-        setBlocks(mergedBlocks);
-        setKeywords(latestKeywords);
-        setTitleOptions([]);
-        setSelectedTitle(
-          mergedBlocks.find((block) => block.type === "title")?.polishedText ??
-            mergedBlocks[0]?.polishedText ??
-            ""
-        );
-        setStatus("翻譯完成，正在整理標題...");
-        void loadTitleOptions(mergedBlocks, latestKeywords);
-      } catch (error) {
-        setError(
-          error instanceof Error && error.message
-            ? error.message
-            : "翻譯連線中斷了。文章較長時可能需要較久，請再試一次。"
-        );
-        setStatus("翻譯中斷，請重新再試一次。");
+        translatedBlocks.push(...payload.blocks);
+        latestKeywords = payload.keywords;
       }
-    });
+
+      const mergedBlocks = mergeTranslatedBlocks(translatedBlocks);
+
+      setBlocks(mergedBlocks);
+      setKeywords(latestKeywords);
+      setTitleOptions([]);
+      setSelectedTitle(
+        mergedBlocks.find((block) => block.type === "title")?.polishedText ??
+          mergedBlocks[0]?.polishedText ??
+          ""
+      );
+      setStatus("翻譯完成，正在整理標題...");
+      void loadTitleOptions(mergedBlocks, latestKeywords);
+    } catch (error) {
+      setError(
+        error instanceof Error && error.message
+          ? error.message
+          : "翻譯連線中斷了。文章較長時可能需要較久，請再試一次。"
+      );
+      setStatus("翻譯中斷，請重新再試一次。");
+    } finally {
+      setPendingStage(null);
+    }
   };
 
   const handleDownload = async () => {
@@ -243,6 +254,7 @@ export function TranslatorApp() {
 
     setError(null);
     setStatus("正在準備匯出檔案...");
+    setPendingStage("downloading");
 
     try {
       const formData = new FormData();
@@ -273,6 +285,8 @@ export function TranslatorApp() {
     } catch {
       setError("下載連線中斷了，請再試一次。");
       setStatus("目前無法建立匯出檔案。");
+    } finally {
+      setPendingStage(null);
     }
   };
 
@@ -285,12 +299,7 @@ export function TranslatorApp() {
         includeTrendSuggestions={includeTrendSuggestions}
         isPending={isPending}
         onAnalyze={handleAnalyze}
-        onFileChange={(nextFile) => {
-          setFile(nextFile);
-          setError(null);
-          setStatus(nextFile ? "可以先分析文章了。" : "可以開始上傳檔案");
-          resetResults();
-        }}
+        onFileChange={handleFileChange}
         onToggleTrendSuggestions={setIncludeTrendSuggestions}
         stage={stage}
         status={status}

@@ -3,7 +3,7 @@ import {
   generateTitleOptions,
   translateArticleBlocks
 } from "../../lib/translation-pipeline";
-import { chunkArticleBlocks } from "../../lib/translation-chunks";
+import { chunkArticleBlocks, mergeTranslatedBlocks } from "../../lib/translation-chunks";
 
 describe("translateArticleBlocks", () => {
   it("runs only bulk translation during article translation", async () => {
@@ -251,9 +251,39 @@ describe("chunkArticleBlocks", () => {
       }
     ]);
 
-    expect(chunks).toHaveLength(2);
-    expect(chunks[0]?.map((block) => block.id)).toEqual(["paragraph-1"]);
-    expect(chunks[1]?.map((block) => block.id)).toEqual(["paragraph-2"]);
+    expect(chunks.length).toBeGreaterThan(2);
+    expect(chunks[0]?.[0]?.id).toContain("paragraph-1");
+    expect(chunks.some((chunk) => chunk[0]?.id.includes("paragraph-2"))).toBe(true);
+  });
+
+  it("merges split translated parts back into original blocks", () => {
+    const merged = mergeTranslatedBlocks([
+      {
+        id: "paragraph-1__part_1",
+        type: "paragraph",
+        sourceText: "第一段前半",
+        translatedText: "前半です。",
+        polishedText: "前半です。",
+        trendSuggestions: ["台湾旅行"],
+        notes: ["part1"]
+      },
+      {
+        id: "paragraph-1__part_2",
+        type: "paragraph",
+        sourceText: "第一段後半",
+        translatedText: "後半です。",
+        polishedText: "後半です。",
+        trendSuggestions: ["台北グルメ"],
+        notes: ["part2"]
+      }
+    ]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.id).toBe("paragraph-1");
+    expect(merged[0]?.translatedText).toContain("前半です。");
+    expect(merged[0]?.translatedText).toContain("後半です。");
+    expect(merged[0]?.trendSuggestions).toEqual(["台湾旅行", "台北グルメ"]);
+    expect(merged[0]?.notes).toEqual(["part1", "part2"]);
   });
 });
 

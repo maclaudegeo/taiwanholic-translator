@@ -6,7 +6,7 @@ import type {
   KeywordSuggestion,
   TitleOption
 } from "../lib/article-blocks";
-import { chunkArticleBlocks } from "../lib/translation-chunks";
+import { chunkArticleBlocks, mergeTranslatedBlocks } from "../lib/translation-chunks";
 import { NotesPane } from "./notes-pane";
 import { ResultPane } from "./result-pane";
 import { UploadForm } from "./upload-form";
@@ -74,6 +74,47 @@ export function TranslatorApp() {
     setKeywords([]);
     setTitleOptions([]);
     setSelectedTitle("");
+  };
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const fetchChunkWithRetry = async (
+    chunk: ArticleBlock[],
+    latestKeywords: KeywordSuggestion[]
+  ) => {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetch("/api/translate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ blocks: chunk, keywords: latestKeywords })
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json()) as { error?: string };
+          throw new Error(payload.error ?? "翻譯失敗。");
+        }
+
+        return (await response.json()) as {
+          blocks: ArticleBlock[];
+          keywords: KeywordSuggestion[];
+          titleOptions: TitleOption[];
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("翻譯失敗。");
+
+        if (attempt < 3) {
+          await sleep(1200 * attempt);
+        }
+      }
+    }
+
+    throw lastError ?? new Error("翻譯失敗。");
   };
 
   const loadTitleOptions = async (
@@ -166,43 +207,30 @@ export function TranslatorApp() {
         for (let index = 0; index < chunks.length; index += 1) {
           setStatus(`正在翻譯第 ${index + 1} / ${chunks.length} 段...`);
 
-          const response = await fetch("/api/translate", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ blocks: chunks[index], keywords: latestKeywords })
-          });
-
-          if (!response.ok) {
-            const payload = (await response.json()) as { error?: string };
-            setError(payload.error ?? "翻譯失敗。");
-            setStatus("請調整關鍵字後再試一次。");
-            return;
-          }
-
-          const payload = (await response.json()) as {
-            blocks: ArticleBlock[];
-            keywords: KeywordSuggestion[];
-            titleOptions: TitleOption[];
-          };
+          const payload = await fetchChunkWithRetry(chunks[index] ?? [], latestKeywords);
 
           translatedBlocks.push(...payload.blocks);
           latestKeywords = payload.keywords;
         }
 
-        setBlocks(translatedBlocks);
+        const mergedBlocks = mergeTranslatedBlocks(translatedBlocks);
+
+        setBlocks(mergedBlocks);
         setKeywords(latestKeywords);
         setTitleOptions([]);
         setSelectedTitle(
-          translatedBlocks.find((block) => block.type === "title")?.polishedText ??
-            translatedBlocks[0]?.polishedText ??
+          mergedBlocks.find((block) => block.type === "title")?.polishedText ??
+            mergedBlocks[0]?.polishedText ??
             ""
         );
         setStatus("翻譯完成，正在整理標題...");
-        void loadTitleOptions(translatedBlocks, latestKeywords);
-      } catch {
-        setError("翻譯連線中斷了。文章較長時可能需要較久，請再試一次。");
+        void loadTitleOptions(mergedBlocks, latestKeywords);
+      } catch (error) {
+        setError(
+          error instanceof Error && error.message
+            ? error.message
+            : "翻譯連線中斷了。文章較長時可能需要較久，請再試一次。"
+        );
         setStatus("翻譯中斷，請重新再試一次。");
       }
     });

@@ -17,7 +17,7 @@ function getProviderLabel() {
 
       return null;
     })
-    .filter((label): label is string => Boolean(label));
+    .filter((label): label is "OpenAI" | "Gemini" => label !== null);
 
   if (activeLabels.length === 0) {
     return "模型服務";

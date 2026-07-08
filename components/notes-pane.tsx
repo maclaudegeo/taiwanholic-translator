@@ -38,6 +38,36 @@ function keywordGroupTitle(source: KeywordSuggestion["source"]) {
   }
 }
 
+function localizeKeywordReason(keyword: KeywordSuggestion) {
+  const reason = keyword.reason.trim();
+
+  if (!reason) {
+    return keyword.source === "google_trends"
+      ? "近期日本旅遊搜尋中常見，適合當作這篇文章的日文關鍵字。"
+      : "這個詞和文章主題高度相關，適合自然放進日文內容。";
+  }
+
+  const normalized = reason.toLowerCase();
+
+  if (normalized.includes("broad, high-volume term")) {
+    return "這是搜尋量較大的日本旅遊詞，和台灣旅遊主題直接相關。";
+  }
+
+  if (normalized.includes("highly relevant") && normalized.includes("targets food enthusiasts")) {
+    return "和文章主題非常貼近，能直接對到想找台北美食的日本讀者。";
+  }
+
+  if (normalized.includes("emphasizes the food aspect")) {
+    return "這個詞會把重點放在台灣美食旅行，很適合這篇文章的主題方向。";
+  }
+
+  if (normalized.includes("recent japan travel search phrase")) {
+    return "這是近期日本旅遊搜尋常見詞，適合自然放進標題或內文。";
+  }
+
+  return reason;
+}
+
 function keywordPlacementLabel(keyword: KeywordSuggestion, index: number) {
   if (keyword.source === "manual") {
     return "手動補充";
@@ -110,7 +140,7 @@ export function NotesPane({
                               </span>
                             </div>
                             <p className="keyword-reason">
-                              [{keywordSourceLabel(keyword.source)}] {keyword.reason}
+                              [{keywordSourceLabel(keyword.source)}] {localizeKeywordReason(keyword)}
                             </p>
                           </div>
                         </article>
@@ -137,7 +167,7 @@ export function NotesPane({
                               </span>
                             </div>
                             <p className="keyword-reason">
-                              [{keywordSourceLabel(keyword.source)}] {keyword.reason}
+                              [{keywordSourceLabel(keyword.source)}] {localizeKeywordReason(keyword)}
                             </p>
                           </div>
                         </label>

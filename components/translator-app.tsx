@@ -55,7 +55,7 @@ export function TranslatorApp() {
   const [includeTrendSuggestions, setIncludeTrendSuggestions] = useState(true);
   const [pendingStage, setPendingStage] = useState<"analyzing" | "translating" | "downloading" | null>(null);
 
-  const hasAnalysis = blocks.length > 0 && keywords.length > 0;
+  const hasAnalysis = blocks.length > 0;
   const hasTranslation = blocks.some((block) => Boolean(block.polishedText));
   const isPending = pendingStage !== null;
   const stage = hasTranslation
@@ -190,7 +190,11 @@ export function TranslatorApp() {
 
       setBlocks(payload.blocks);
       setKeywords(payload.keywords);
-      setStatus("請先勾選要使用的關鍵字，再開始翻譯。");
+      setStatus(
+        payload.keywords.length > 0
+          ? `分析完成，共整理出 ${payload.keywords.length} 個關鍵字，請勾選後開始翻譯。`
+          : "分析完成，但這篇暫時沒有自動抓到關鍵字。你可以手動補詞，或直接開始翻譯。"
+      );
     } catch {
       setError("目前無法連線到分析服務，請稍後再試一次。");
       setStatus("分析中斷，請重新再試一次。");

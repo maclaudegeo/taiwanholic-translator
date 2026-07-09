@@ -138,10 +138,20 @@ export function NotesPane({
         </p>
       </div>
 
-      {keywords.length > 0 ? (
-        <div className="notes-list">
-          <article className="note-card keyword-card">
-            {(["google_trends", "article_core", "manual"] as const).map((source) =>
+      <div className="notes-list">
+        <article className="note-card keyword-card">
+          {keywords.length === 0 ? (
+            <section className="keyword-group">
+              <div className="keyword-group-head">
+                <h4>這篇文章目前沒有自動關鍵字</h4>
+              </div>
+              <p className="subtle">
+                你可以直接在下面手動加入想保留的日文關鍵字，或不加詞直接翻譯。
+              </p>
+            </section>
+          ) : null}
+          
+          {(["google_trends", "article_core", "manual"] as const).map((source) =>
               groupedKeywords[source].length > 0 ? (
                 <section key={source} className="keyword-group">
                   <div className="keyword-group-head">
@@ -181,43 +191,42 @@ export function NotesPane({
               ) : null
             )}
 
-            <section className="keyword-group">
-              <div className="keyword-group-head">
-                <h4>手動補詞空白格</h4>
-              </div>
-              <div className="manual-keyword-row">
-                <input
-                  className="text-input"
-                  type="text"
-                  value={manualKeyword}
-                  placeholder="手動加入你想補的日文關鍵字"
-                  onChange={(event) => setManualKeyword(event.currentTarget.value)}
-                />
-                <button
-                  className="secondary-button inline-button"
-                  type="button"
-                  disabled={isPending || manualKeyword.trim().length === 0}
-                  onClick={() => {
-                    onAddManualKeyword(manualKeyword);
-                    setManualKeyword("");
-                  }}
-                >
-                  加入
-                </button>
-              </div>
-            </section>
+          <section className="keyword-group">
+            <div className="keyword-group-head">
+              <h4>手動補詞空白格</h4>
+            </div>
+            <div className="manual-keyword-row">
+              <input
+                className="text-input"
+                type="text"
+                value={manualKeyword}
+                placeholder="手動加入你想補的日文關鍵字"
+                onChange={(event) => setManualKeyword(event.currentTarget.value)}
+              />
+              <button
+                className="secondary-button inline-button"
+                type="button"
+                disabled={isPending || manualKeyword.trim().length === 0}
+                onClick={() => {
+                  onAddManualKeyword(manualKeyword);
+                  setManualKeyword("");
+                }}
+              >
+                加入
+              </button>
+            </div>
+          </section>
 
-            <button
-              className="primary-button translate-button"
-              type="button"
-              disabled={isPending || blocks.length === 0}
-              onClick={onTranslate}
-            >
-              {isPending ? "翻譯中..." : "翻成日文"}
-            </button>
-          </article>
-        </div>
-      ) : null}
+          <button
+            className="primary-button translate-button"
+            type="button"
+            disabled={isPending || blocks.length === 0}
+            onClick={onTranslate}
+          >
+            {isPending ? "翻譯中..." : "翻成日文"}
+          </button>
+        </article>
+      </div>
     </section>
   );
 }

@@ -46,99 +46,106 @@ function extractText(node: unknown): string {
   return "";
 }
 
-function getParagraphText(paragraph: Record<string, unknown>) {
-  const textFromRuns = asArray(paragraph["w:r"])
-    .flatMap((runNode) => {
-      if (!runNode || typeof runNode !== "object") {
-        return [];
-      }
+function collectTextValues(node: unknown, output: string[]) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
 
-      const runRecord = runNode as Record<string, unknown>;
-      return asArray(runRecord["w:t"]).map(extractText);
-    })
-    .join("");
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectTextValues(item, output);
+    }
+    return;
+  }
 
-  const textFromLinks = asArray(paragraph["w:hyperlink"])
-    .flatMap((hyperlinkNode) => {
-      if (!hyperlinkNode || typeof hyperlinkNode !== "object") {
-        return [];
-      }
+  const record = node as Record<string, unknown>;
 
-      const hyperlinkRecord = hyperlinkNode as Record<string, unknown>;
-      return asArray(hyperlinkRecord["w:r"]).flatMap((runNode) => {
-        if (!runNode || typeof runNode !== "object") {
-          return [];
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "w:instrText") {
+      continue;
+    }
+
+    if (key === "w:t") {
+      if (typeof value === "string") {
+        output.push(value);
+      } else if (value && typeof value === "object") {
+        const textNode = (value as Record<string, unknown>)["#text"];
+
+        if (typeof textNode === "string") {
+          output.push(textNode);
         }
+      }
+      continue;
+    }
 
-        const runRecord = runNode as Record<string, unknown>;
-        return asArray(runRecord["w:t"]).map(extractText);
-      });
-    })
-    .join("");
-
-  return `${textFromRuns}${textFromLinks}`.replace(/\s+/g, " ").trim();
+    collectTextValues(value, output);
+  }
 }
 
-function setTextNodesOnRun(runNode: Record<string, unknown>, nextText: string) {
-  const textNodes = asArray(runNode["w:t"]);
+function getParagraphText(paragraph: Record<string, unknown>) {
+  const texts: string[] = [];
+  collectTextValues(paragraph, texts);
+  return texts.join("").replace(/\s+/g, " ").trim();
+}
 
-  if (textNodes.length === 0) {
+function replaceTextValues(
+  node: unknown,
+  nextText: string
+): { consumed: boolean; remainingText: string } {
+  if (!node || typeof node !== "object") {
     return { consumed: false, remainingText: nextText };
   }
 
-  const [firstNode, ...restNodes] = textNodes;
-  const nextFirstNode =
-    typeof firstNode === "string"
-      ? nextText
-      : {
-          ...(firstNode as Record<string, unknown>),
-          "#text": nextText
-        };
+  if (Array.isArray(node)) {
+    let remainingText = nextText;
+    let consumed = false;
 
-  runNode["w:t"] = [nextFirstNode, ...restNodes.map(() => "")];
-  return { consumed: true, remainingText: "" };
+    for (const item of node) {
+      const result = replaceTextValues(item, remainingText);
+      consumed = consumed || result.consumed;
+      remainingText = result.remainingText;
+    }
+
+    return { consumed, remainingText };
+  }
+
+  const record = node as Record<string, unknown>;
+  let remainingText = nextText;
+  let consumed = false;
+
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "w:instrText") {
+      continue;
+    }
+
+    if (key === "w:t") {
+      if (typeof value === "string") {
+        record[key] = remainingText;
+      } else if (value && typeof value === "object") {
+        record[key] = {
+          ...(value as Record<string, unknown>),
+          "#text": remainingText
+        };
+      }
+
+      consumed = true;
+      remainingText = "";
+      continue;
+    }
+
+    const result = replaceTextValues(value, remainingText);
+    consumed = consumed || result.consumed;
+    remainingText = result.remainingText;
+  }
+
+  return { consumed, remainingText };
 }
 
 function replaceParagraphText(
   paragraph: Record<string, unknown>,
   replacementText: string
 ) {
-  let remainingText = replacementText;
-  let consumed = false;
-
-  for (const runNode of asArray(paragraph["w:r"])) {
-    if (!runNode || typeof runNode !== "object") {
-      continue;
-    }
-
-    const result = setTextNodesOnRun(
-      runNode as Record<string, unknown>,
-      remainingText
-    );
-    consumed = consumed || result.consumed;
-    remainingText = result.remainingText;
-  }
-
-  for (const hyperlinkNode of asArray(paragraph["w:hyperlink"])) {
-    if (!hyperlinkNode || typeof hyperlinkNode !== "object") {
-      continue;
-    }
-
-    const hyperlinkRecord = hyperlinkNode as Record<string, unknown>;
-
-    for (const runNode of asArray(hyperlinkRecord["w:r"])) {
-      if (!runNode || typeof runNode !== "object") {
-        continue;
-      }
-
-      const result = setTextNodesOnRun(
-        runNode as Record<string, unknown>,
-        remainingText
-      );
-      consumed = consumed || result.consumed;
-      remainingText = result.remainingText;
-    }
-  }
+  const { consumed } = replaceTextValues(paragraph, replacementText);
 
   if (!consumed) {
     const runs = asArray(paragraph["w:r"]);

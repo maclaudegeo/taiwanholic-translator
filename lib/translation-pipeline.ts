@@ -62,6 +62,7 @@ function createCallModel(
             keywords: z.array(
               z.object({
                 phrase: z.string().min(1),
+                phraseZh: z.string().min(1),
                 source: z.enum(["article_core", "google_trends", "manual"]),
                 reason: z.string().min(1),
                 selected: z.boolean().default(true)
@@ -79,6 +80,7 @@ function createCallModel(
               z.object({
                 label: z.string().min(1),
                 text: z.string().min(1),
+                textZh: z.string().min(1),
                 focus: z.string().min(1),
                 keywordsUsed: z.array(z.string()).default([])
               })
@@ -107,6 +109,7 @@ function createCallModel(
 function normalizeKeyword(keyword: KeywordSuggestion): KeywordSuggestion {
   return {
     phrase: keyword.phrase.trim(),
+    phraseZh: normalizeModelText(keyword.phraseZh) || keyword.phrase.trim(),
     source: keyword.source,
     reason: normalizeKeywordReason(keyword.reason, keyword.source),
     selected: keyword.selected
@@ -189,6 +192,7 @@ function buildFallbackKeywords(trendCandidates: string[]) {
   return dedupeKeywords(
     trendCandidates.slice(0, 8).map((phrase, index) => ({
       phrase,
+      phraseZh: phrase,
       source: "google_trends" as const,
       reason:
         index < 3
@@ -225,6 +229,7 @@ function normalizeTitleOptions(options: TitleOption[]) {
     id: normalizeModelText(option.id) || `title-option-${index + 1}`,
     label: normalizeModelText(option.label) || `標題 ${index + 1}`,
     text: normalizeModelText(option.text),
+    textZh: normalizeModelText(option.textZh) || normalizeModelText(option.text),
     focus: normalizeModelText(option.focus) || `方向 ${index + 1}`,
     keywordsUsed: option.keywordsUsed ?? []
   }));

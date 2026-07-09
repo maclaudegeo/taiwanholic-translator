@@ -145,12 +145,13 @@ export function buildKeywordSuggestionPrompt(input: {
     "記事との関連性を最優先にしつつ、最近の日本の旅行検索語も補助的に反映する。",
     "Google Trends の語は補助材料であり、記事内容に合わない語は採用しない。",
     "タイトル、小見出し、本文導入、短い説明文に自然に入る語だけを残す。",
+    "keyword.phraseZh には、その日本語キーワードの意味が中国語でひと目でわかる短い訳を書く。",
     "keyword.reason は必ず自然な日本語で1文だけ書く。英語、中国語、箇条書きは禁止。",
     "keyword.phrase も必ず日本語の検索語にする。",
     `Article summary: ${input.sourceSummary}`,
     `Article hints: ${input.articleHints.join(", ") || "none"}`,
     `Recent Japan travel trend candidates: ${input.trendCandidates.join(", ") || "none"}`,
-    "Output JSON with key keywords. Each keyword item needs phrase, source(article_core or google_trends), reason, and selected(true/false). Return 5 to 10 items."
+    "Output JSON with key keywords. Each keyword item needs phrase, phraseZh, source(article_core or google_trends), reason, and selected(true/false). Return 5 to 10 items."
   ].join("\n");
 }
 
@@ -168,10 +169,11 @@ export function buildTitleOptionsPrompt(input: {
     "All options must include or strongly reflect the selected keywords only where natural.",
     "The best title should feel like a trusted Taiwan friend giving a helpful invitation, not a loud clickbait ad.",
     "Return exactly three options with these focuses: stable, click, search.",
+    "Each option.textZh must be a concise Traditional Chinese translation that helps a Chinese-speaking editor instantly understand the Japanese title.",
     `Original Chinese title: ${input.sourceTitle}`,
     `Current polished Japanese title: ${input.polishedTitle}`,
     `Selected keywords: ${input.selectedKeywords.join(", ") || "none"}`,
-    "Output JSON with key options. Each option needs label, text, focus, and keywordsUsed."
+    "Output JSON with key options. Each option needs label, text, textZh, focus, and keywordsUsed."
   ].join("\n");
 }
 

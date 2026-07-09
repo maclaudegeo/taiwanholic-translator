@@ -19,6 +19,7 @@ export type KeywordSource = "article_core" | "google_trends" | "manual";
 
 export type KeywordSuggestion = {
   phrase: string;
+  phraseZh: string;
   source: KeywordSource;
   reason: string;
   selected: boolean;
@@ -28,6 +29,7 @@ export type TitleOption = {
   id: string;
   label: string;
   text: string;
+  textZh: string;
   focus: string;
   keywordsUsed: string[];
 };

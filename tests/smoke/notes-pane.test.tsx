@@ -22,12 +22,14 @@ describe("NotesPane", () => {
         keywords={[
           {
             phrase: "寧夏夜市 グルメ",
+            phraseZh: "寧夏夜市美食",
             source: "article_core",
             reason: "文章核心詞",
             selected: true
           },
           {
             phrase: "台北グルメ",
+            phraseZh: "台北美食",
             source: "google_trends",
             reason: "趨勢詞",
             selected: false
@@ -55,6 +57,8 @@ describe("NotesPane", () => {
     fireEvent.click(articleKeyword);
     fireEvent.click(trendKeyword);
 
+    expect(screen.getByText(/中文意思：寧夏夜市美食/i)).toBeInTheDocument();
+    expect(screen.getByText(/中文意思：台北美食/i)).toBeInTheDocument();
     expect(onToggleKeyword).toHaveBeenNthCalledWith(1, "寧夏夜市 グルメ", false);
     expect(onToggleKeyword).toHaveBeenNthCalledWith(2, "台北グルメ", true);
   });

@@ -21,6 +21,7 @@ describe("ResultPane", () => {
         keywords={[
           {
             phrase: "台湾 朝ごはん",
+            phraseZh: "台灣早餐",
             source: "google_trends",
             reason: "Recent Japan travel search phrase",
             selected: true
@@ -31,6 +32,7 @@ describe("ResultPane", () => {
             id: "stable",
             label: "穩健型",
             text: "台北で楽しむ朝ごはん案内",
+            textZh: "在台北享受早餐的指南",
             focus: "穩健型",
             keywordsUsed: ["台湾 朝ごはん"]
           },
@@ -38,6 +40,7 @@ describe("ResultPane", () => {
             id: "click",
             label: "吸引型",
             text: "台湾らしい朝を楽しむなら 台北朝ごはん案内",
+            textZh: "如果想感受台灣早晨，這篇台北早餐指南別錯過",
             focus: "吸引型",
             keywordsUsed: ["台湾 朝ごはん"]
           },
@@ -45,6 +48,7 @@ describe("ResultPane", () => {
             id: "search",
             label: "搜尋型",
             text: "台北 朝ごはん おすすめ 台湾旅行で外せない一軒",
+            textZh: "台北早餐推薦，台灣旅行不能錯過的一家",
             focus: "搜尋型",
             keywordsUsed: ["台湾 朝ごはん"]
           }
@@ -54,6 +58,7 @@ describe("ResultPane", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: /台北で楽しむ朝ごはん案内/i })).toBeInTheDocument();
     expect(screen.getByText(/標題建議/i)).toBeInTheDocument();
+    expect(screen.getByText(/中文意思：在台北享受早餐的指南/i)).toBeInTheDocument();
     expect(screen.getAllByLabelText(/選這個標題/i)).toHaveLength(3);
     expect(screen.getByLabelText(/使用自訂標題/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/自己輸入想用的日文標題/i)).toBeInTheDocument();

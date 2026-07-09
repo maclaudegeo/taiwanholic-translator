@@ -37,6 +37,7 @@ function upsertManualKeyword(
     ...keywords,
     {
       phrase: normalized,
+      phraseZh: normalized,
       source: "manual",
       reason: "由使用者手動補充",
       selected: true

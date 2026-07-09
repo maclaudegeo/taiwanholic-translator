@@ -20,6 +20,7 @@ const requestSchema = z.object({
   keywords: z.array(
     z.object({
       phrase: z.string().min(1),
+      phraseZh: z.string().min(1),
       source: z.enum(["article_core", "google_trends", "manual"]),
       reason: z.string(),
       selected: z.boolean()

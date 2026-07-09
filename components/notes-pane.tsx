@@ -180,6 +180,7 @@ export function NotesPane({
                               {keywordPlacementLabel(keyword, index)}
                             </span>
                           </div>
+                          <p className="subtle">中文意思：{keyword.phraseZh}</p>
                           <p className="keyword-reason">
                             [{keywordSourceLabel(keyword.source)}] {localizeKeywordReason(keyword)}
                           </p>

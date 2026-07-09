@@ -195,6 +195,7 @@ export function ResultPane({
                 <span>選這個標題</span>
               </label>
               <h3>{option.text}</h3>
+              <p className="subtle">中文意思：{option.textZh}</p>
               <p className="subtle">
                 方向：{localizeTitleFocus(option.focus, index)} | 已帶入關鍵字：
                 {option.keywordsUsed.join("、") || "尚未帶入"}

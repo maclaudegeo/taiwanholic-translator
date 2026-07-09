@@ -38,6 +38,42 @@ function extractText(node: unknown): string {
   return "";
 }
 
+function collectTextNodes(node: unknown, output: string[]) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectTextNodes(item, output);
+    }
+    return;
+  }
+
+  const record = node as Record<string, unknown>;
+
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "w:instrText") {
+      continue;
+    }
+
+    if (key === "w:t") {
+      if (typeof value === "string") {
+        output.push(value);
+      } else if (value && typeof value === "object") {
+        const textNode = (value as Record<string, unknown>)["#text"];
+
+        if (typeof textNode === "string") {
+          output.push(textNode);
+        }
+      }
+      continue;
+    }
+
+    collectTextNodes(value, output);
+  }
+}
+
 function getTextFromRuns(runNodes: unknown[]): string {
   return runNodes
     .flatMap((runNode) => {
@@ -50,6 +86,62 @@ function getTextFromRuns(runNodes: unknown[]): string {
       return textNodes.map(extractText);
     })
     .join("");
+}
+
+function extractParagraphText(paragraphNode: Record<string, unknown>) {
+  const texts: string[] = [];
+  collectTextNodes(paragraphNode, texts);
+  return texts.join("").trim();
+}
+
+function extractParagraphStyleName(
+  paragraphNode: Record<string, unknown>,
+  styleMap: Map<string, string>
+) {
+  const paragraphProperties = paragraphNode["w:pPr"] as Record<string, unknown> | undefined;
+  const styleNode = paragraphProperties?.["w:pStyle"] as Record<string, unknown> | undefined;
+  const styleId =
+    typeof styleNode?.["w:val"] === "string" ? styleNode["w:val"] : undefined;
+
+  return styleId ? styleMap.get(styleId) ?? styleId : undefined;
+}
+
+function collectParagraphsFromNode(
+  node: unknown,
+  styleMap: Map<string, string>,
+  output: RawParagraph[]
+) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectParagraphsFromNode(item, styleMap, output);
+    }
+    return;
+  }
+
+  const record = node as Record<string, unknown>;
+
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "w:p") {
+      for (const paragraphNode of asArray(value)) {
+        if (!paragraphNode || typeof paragraphNode !== "object") {
+          continue;
+        }
+
+        const paragraphRecord = paragraphNode as Record<string, unknown>;
+        output.push({
+          text: extractParagraphText(paragraphRecord),
+          styleName: extractParagraphStyleName(paragraphRecord, styleMap)
+        });
+      }
+      continue;
+    }
+
+    collectParagraphsFromNode(value, styleMap, output);
+  }
 }
 
 function detectBlockType(
@@ -156,29 +248,8 @@ export async function parseDocxBuffer(buffer: ArrayBuffer | Buffer) {
     "w:body"
   ] as Record<string, unknown> | undefined;
 
-  const paragraphs = asArray(body?.["w:p"]).map((paragraphNode) => {
-    const paragraph = paragraphNode as Record<string, unknown>;
-    const paragraphProperties = paragraph["w:pPr"] as Record<string, unknown> | undefined;
-    const styleNode = paragraphProperties?.["w:pStyle"] as Record<string, unknown> | undefined;
-    const styleId =
-      typeof styleNode?.["w:val"] === "string" ? styleNode["w:val"] : undefined;
-
-    const text = [
-      getTextFromRuns(asArray(paragraph["w:r"])),
-      ...asArray(paragraph["w:hyperlink"]).map((hyperlinkNode) =>
-        getTextFromRuns(
-          asArray((hyperlinkNode as Record<string, unknown>)["w:r"]),
-        ),
-      )
-    ]
-      .join("")
-      .trim();
-
-    return {
-      text,
-      styleName: styleId ? styleMap.get(styleId) ?? styleId : undefined
-    };
-  });
+  const paragraphs: RawParagraph[] = [];
+  collectParagraphsFromNode(body, styleMap, paragraphs);
 
   return parseRawParagraphs(paragraphs);
 }

@@ -39,6 +39,17 @@ export async function POST(request: Request) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const parsedBlocks = await parseDocxBuffer(arrayBuffer);
+
+    if (parsedBlocks.length === 0) {
+      return Response.json(
+        {
+          error:
+            "這份 .docx 目前沒有讀到可翻譯文字。常見原因是內容放在圖片、文字方塊或特殊版型裡。你可以先把文章內容改成一般段落或表格後再試一次。"
+        },
+        { status: 422 }
+      );
+    }
+
     const analysis = await analyzeArticleBlocks(createEmptyBlocks(parsedBlocks), {
       includeTrendSuggestions
     });

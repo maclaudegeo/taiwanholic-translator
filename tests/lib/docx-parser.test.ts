@@ -1,4 +1,4 @@
-import { Document, HeadingLevel, Packer, Paragraph } from "docx";
+import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow } from "docx";
 import { parseDocxBuffer, parseRawParagraphs } from "../../lib/docx-parser";
 
 describe("parseRawParagraphs", () => {
@@ -44,5 +44,41 @@ describe("parseRawParagraphs", () => {
       "heading"
     ]);
     expect(blocks[0]?.sourceText).toBe("台北早餐推薦");
+  });
+
+  it("parses paragraphs that are placed inside tables", async () => {
+    const document = new Document({
+      sections: [
+        {
+          children: [
+            new Table({
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          text: "表格裡的標題",
+                          heading: HeadingLevel.TITLE
+                        }),
+                        new Paragraph("表格裡的內文")
+                      ]
+                    })
+                  ]
+                })
+              ]
+            })
+          ]
+        }
+      ]
+    });
+
+    const buffer = await Packer.toBuffer(document);
+    const blocks = await parseDocxBuffer(buffer);
+
+    expect(blocks.map((block) => block.sourceText)).toEqual([
+      "表格裡的標題",
+      "表格裡的內文"
+    ]);
   });
 });

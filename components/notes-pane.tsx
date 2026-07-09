@@ -134,7 +134,7 @@ export function NotesPane({
       <div className="section-heading">
         <h2>選關鍵字</h2>
         <p className="subtle">
-          你只需要選 Google Trend 關鍵字。文章相關詞會直接告訴你建議放哪裡，翻譯時系統會自然處理。
+          每張關鍵字卡片都可以直接點選。保留你想用的詞，系統翻譯時會自然帶入，不會硬塞。
         </p>
       </div>
 
@@ -148,53 +148,34 @@ export function NotesPane({
                     <h4>{keywordGroupTitle(source)}</h4>
                   </div>
                   <div className="keyword-list">
-                    {groupedKeywords[source].map((keyword, index) =>
-                      source === "article_core" ? (
-                        <article
-                          key={`${keyword.source}-${keyword.phrase}`}
-                          className="keyword-option keyword-suggestion"
-                        >
-                          <div>
-                            <div className="keyword-line">
-                              <strong>{keyword.phrase}</strong>
-                              <span className="placement-chip">
-                                {keywordPlacementLabel(keyword, index)}
-                              </span>
-                            </div>
-                            <p className="keyword-reason">
-                              [{keywordSourceLabel(keyword.source)}] {localizeKeywordReason(keyword)}
-                            </p>
+                    {groupedKeywords[source].map((keyword, index) => (
+                      <label
+                        key={`${keyword.source}-${keyword.phrase}`}
+                        className={`keyword-option ${keyword.selected ? "keyword-option-selected" : ""}`}
+                      >
+                        {source === "manual" ? null : (
+                          <input
+                            type="checkbox"
+                            checked={keyword.selected}
+                            disabled={isPending}
+                            onChange={(event) =>
+                              onToggleKeyword(keyword.phrase, event.currentTarget.checked)
+                            }
+                          />
+                        )}
+                        <div>
+                          <div className="keyword-line">
+                            <strong>{keyword.phrase}</strong>
+                            <span className="placement-chip">
+                              {keywordPlacementLabel(keyword, index)}
+                            </span>
                           </div>
-                        </article>
-                      ) : (
-                        <label
-                          key={`${keyword.source}-${keyword.phrase}`}
-                          className="keyword-option"
-                        >
-                          {source === "manual" ? null : (
-                            <input
-                              type="checkbox"
-                              checked={keyword.selected}
-                              disabled={isPending}
-                              onChange={(event) =>
-                                onToggleKeyword(keyword.phrase, event.currentTarget.checked)
-                              }
-                            />
-                          )}
-                          <div>
-                            <div className="keyword-line">
-                              <strong>{keyword.phrase}</strong>
-                              <span className="placement-chip">
-                                {keywordPlacementLabel(keyword, index)}
-                              </span>
-                            </div>
-                            <p className="keyword-reason">
-                              [{keywordSourceLabel(keyword.source)}] {localizeKeywordReason(keyword)}
-                            </p>
-                          </div>
-                        </label>
-                      )
-                    )}
+                          <p className="keyword-reason">
+                            [{keywordSourceLabel(keyword.source)}] {localizeKeywordReason(keyword)}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 </section>
               ) : null

@@ -3,3 +3,10 @@ node_modules
 .next.dev-corrupt-backup-20260708-0938
 .env.local
 coverage
+.vercel
+.env*
+.DS_Store
+tsconfig.tsbuildinfo
+op-youtube-translator/
+op-youtube-translator-public/
+參考翻譯/

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
 import { z, type ZodType } from "zod";
 
 type ProviderName = "gemini" | "openai";
@@ -87,15 +88,29 @@ function getOpenAiClient() {
   return openAiClient;
 }
 
-async function requestWithOpenAi(input: StructuredInput) {
-  const response = await getOpenAiClient().responses.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-5.5",
-    reasoning: { effort: "low" },
+// OpenAI structured output：強制模型回傳「完全符合 schema」的 JSON。
+// gpt-4o 對「純文字指示的 JSON」不夠聽話（會把 { blocks: [...] } 回成裸陣列），
+// 用 responses.parse + zodTextFormat 才能鎖死格式。
+// gpt-4o：拿掉昂貴的 reasoning 旗艦模型（gpt-5.5），品質幾乎不受影響、成本大降。
+async function requestWithOpenAiStructured<T>(
+  schema: ZodType<T>,
+  input: StructuredInput
+): Promise<T> {
+  const response = await getOpenAiClient().responses.parse({
+    model: process.env.OPENAI_MODEL ?? "gpt-4o",
+    temperature: 0.4,
     instructions: input.instructions,
-    input: input.prompt
+    input: input.prompt,
+    text: {
+      format: zodTextFormat(schema, "twh_structured_response")
+    }
   });
 
-  return response.output_text;
+  if (!response.output_parsed) {
+    throw new Error("OpenAI returned no parsed structured output.");
+  }
+
+  return response.output_parsed;
 }
 
 function getGeminiTextParts(payload: unknown) {
@@ -195,14 +210,6 @@ async function requestWithGemini(input: StructuredInput) {
   throw lastError ?? new Error("Gemini request failed.");
 }
 
-async function generateJsonText(provider: ProviderName, input: StructuredInput) {
-  if (provider === "gemini") {
-    return requestWithGemini(input);
-  }
-
-  return requestWithOpenAi(input);
-}
-
 function summarizeProviderFailure(provider: ProviderName, error: unknown) {
   const detail = error instanceof Error ? error.message.trim() : String(error);
   return `${provider}: ${detail}`;
@@ -217,7 +224,13 @@ export async function requestStructuredData<T>(
 
   for (const provider of providers) {
     try {
-      const rawText = await generateJsonText(provider, input);
+      if (provider === "openai") {
+        // OpenAI 走強制 schema，模型無法回錯格式
+        return await requestWithOpenAiStructured(schema, input);
+      }
+
+      // Gemini 仍走「純文字 → 解析 JSON → 驗證」的路徑
+      const rawText = await requestWithGemini(input);
       const extracted = extractJsonPayload(rawText);
       let parsed: unknown;
 

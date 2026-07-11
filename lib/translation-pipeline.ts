@@ -96,7 +96,9 @@ function createCallModel(
             z.object({
               id: z.string().min(1),
               text: z.string().default(""),
-              notes: noteListSchema.default([])
+              // structured output 會強制模型回傳字串陣列，不再需要舊的寬鬆 union
+              // （union with null/undefined 會產生 OpenAI 不接受的 anyOf/not 結構）
+              notes: z.array(z.string()).default([])
             })
           )
         }),

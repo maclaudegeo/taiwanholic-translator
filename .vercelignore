@@ -1,0 +1,6 @@
+# 巢狀在此資料夾內的獨立子專案，不屬於 TWH 文章翻譯器，部署時排除
+op-youtube-translator
+op-youtube-translator-public
+參考翻譯
+*.docx
+HANDOFF_TWH traslator.md

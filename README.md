@@ -17,7 +17,7 @@ Recommended: deploy to `Vercel`.
 1. Create a Vercel project from this folder or from a GitHub repository.
 2. Add these Environment Variables in Vercel:
    `OPENAI_API_KEY`
-   `OPENAI_MODEL` with value `gpt-5.5`
+   `OPENAI_MODEL` with value `gpt-4o` (avoid `gpt-5.5` + reasoning — far more expensive with no real quality gain here)
    `LLM_PROVIDER_ORDER` with value `openai`
    `GEMINI_API_KEY` if you still want a backup provider
    `GEMINI_MODEL` with value `gemini-2.5-flash` if you want that backup provider

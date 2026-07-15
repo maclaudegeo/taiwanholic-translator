@@ -9,15 +9,20 @@ import JSZip from "jszip";
 import { XMLBuilder, XMLParser } from "fast-xml-parser";
 import type { ArticleBlock } from "./article-blocks";
 
+// NOTE: attributeNamePrefix must be non-empty. An empty prefix makes the
+// builder unable to tell XML attributes apart from empty child elements, which
+// corrupts image drawing markup (<a:fillRect/>, <a:avLst/>, <pic:cNvPicPr/> …)
+// on round-trip and causes embedded photos to shrink/re-render in Word.
+// suppressEmptyNode keeps those empty elements as self-closing tags.
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
-  attributeNamePrefix: ""
+  attributeNamePrefix: "@_"
 });
 
 const xmlBuilder = new XMLBuilder({
   ignoreAttributes: false,
-  attributeNamePrefix: "",
-  suppressEmptyNode: false
+  attributeNamePrefix: "@_",
+  suppressEmptyNode: true
 });
 
 function asArray<T>(value: T | T[] | undefined): T[] {
